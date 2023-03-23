@@ -17,6 +17,7 @@
   "dependencies": {
     "@ethersproject/providers": "^5.7.2",
     "@morpho-labs/ethers-utils": "^1.1.1",
+    "@morpho-labs/morpho-ethers-contract": "^1.13.0",
     "dotenv": "^16.0.3",
     "ethers": "^5.7.2"
   },
@@ -31,6 +32,7 @@
     "eslint-config-next": "^13.2.4",
     "eslint-config-prettier": "^8.8.0",
     "eslint-plugin-import": "^2.27.5",
+    "eslint-plugin-node": "^11.1.0",
     "eslint-plugin-prettier": "^4.2.1",
     "eslint-plugin-unused-imports": "^2.0.0",
     "husky": "^8.0.3",
