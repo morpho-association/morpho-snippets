@@ -4,6 +4,19 @@
 
 /* eslint-disable */
 import type {
+  TypedEventFilter,
+  TypedEvent,
+  TypedListener,
+  OnEvent,
+  PromiseOrValue,
+} from "./common";
+import type {
+  FunctionFragment,
+  Result,
+  EventFragment,
+} from "@ethersproject/abi";
+import type { Listener, Provider } from "@ethersproject/providers";
+import type {
   BaseContract,
   BigNumber,
   BigNumberish,
@@ -15,21 +28,6 @@ import type {
   Signer,
   utils,
 } from "ethers";
-
-import type {
-  FunctionFragment,
-  Result,
-  EventFragment,
-} from "@ethersproject/abi";
-import type { Listener, Provider } from "@ethersproject/providers";
-
-import type {
-  TypedEventFilter,
-  TypedEvent,
-  TypedListener,
-  OnEvent,
-  PromiseOrValue,
-} from "@morpho-labs/morpho-ethers-contract/src/common";
 
 export declare namespace Types {
   export type SignatureStruct = {
@@ -44,12 +42,12 @@ export declare namespace Types {
     s: string;
   };
 
-  export type MaxIterationsStruct = {
+  export type IterationsStruct = {
     repay: PromiseOrValue<BigNumberish>;
     withdraw: PromiseOrValue<BigNumberish>;
   };
 
-  export type MaxIterationsStructOutput = [BigNumber, BigNumber] & {
+  export type IterationsStructOutput = [BigNumber, BigNumber] & {
     repay: BigNumber;
     withdraw: BigNumber;
   };
@@ -90,13 +88,13 @@ export declare namespace Types {
   };
 
   export type MarketSideDeltaStruct = {
-    scaledDeltaPool: PromiseOrValue<BigNumberish>;
-    scaledTotalP2P: PromiseOrValue<BigNumberish>;
+    scaledDelta: PromiseOrValue<BigNumberish>;
+    scaledP2PTotal: PromiseOrValue<BigNumberish>;
   };
 
   export type MarketSideDeltaStructOutput = [BigNumber, BigNumber] & {
-    scaledDeltaPool: BigNumber;
-    scaledTotalP2P: BigNumber;
+    scaledDelta: BigNumber;
+    scaledP2PTotal: BigNumber;
   };
 
   export type DeltasStruct = {
@@ -154,6 +152,7 @@ export declare namespace Types {
     deltas: Types.DeltasStruct;
     underlying: PromiseOrValue<string>;
     pauseStatuses: Types.PauseStatusesStruct;
+    isCollateral: PromiseOrValue<boolean>;
     variableDebtToken: PromiseOrValue<string>;
     lastUpdateTimestamp: PromiseOrValue<BigNumberish>;
     reserveFactor: PromiseOrValue<BigNumberish>;
@@ -168,6 +167,7 @@ export declare namespace Types {
     Types.DeltasStructOutput,
     string,
     Types.PauseStatusesStructOutput,
+    boolean,
     string,
     number,
     number,
@@ -180,6 +180,7 @@ export declare namespace Types {
     deltas: Types.DeltasStructOutput;
     underlying: string;
     pauseStatuses: Types.PauseStatusesStructOutput;
+    isCollateral: boolean;
     variableDebtToken: string;
     lastUpdateTimestamp: number;
     reserveFactor: number;
@@ -215,11 +216,9 @@ export declare namespace Types {
 
 export interface MorphoAaveV3Interface extends utils.Interface {
   functions: {
-    "ADDRESSES_PROVIDER()": FunctionFragment;
     "DOMAIN_SEPARATOR()": FunctionFragment;
-    "E_MODE_CATEGORY_ID()": FunctionFragment;
-    "POOL()": FunctionFragment;
     "acceptOwnership()": FunctionFragment;
+    "addressesProvider()": FunctionFragment;
     "approveManager(address,bool)": FunctionFragment;
     "approveManagerWithSig(address,address,bool,uint256,uint256,(uint8,bytes32,bytes32))": FunctionFragment;
     "borrow(address,uint256,address,address,uint256)": FunctionFragment;
@@ -228,19 +227,21 @@ export interface MorphoAaveV3Interface extends utils.Interface {
     "claimToTreasury(address[],uint256[])": FunctionFragment;
     "collateralBalance(address,address)": FunctionFragment;
     "createMarket(address,uint16,uint16)": FunctionFragment;
-    "defaultMaxIterations()": FunctionFragment;
+    "defaultIterations()": FunctionFragment;
+    "eModeCategoryId()": FunctionFragment;
     "getBucketsMask(address,uint8)": FunctionFragment;
     "getNext(address,uint8,address)": FunctionFragment;
     "increaseP2PDeltas(address,uint256)": FunctionFragment;
-    "initialize(address,(uint64,uint64))": FunctionFragment;
+    "initialize(address,uint8,address,(uint128,uint128))": FunctionFragment;
     "isClaimRewardsPaused()": FunctionFragment;
     "isManaging(address,address)": FunctionFragment;
     "liquidate(address,address,address,uint256)": FunctionFragment;
-    "liquidityData(address,address,uint256,uint256)": FunctionFragment;
+    "liquidityData(address)": FunctionFragment;
     "market(address)": FunctionFragment;
     "marketsCreated()": FunctionFragment;
     "owner()": FunctionFragment;
     "pendingOwner()": FunctionFragment;
+    "pool()": FunctionFragment;
     "positionsManager()": FunctionFragment;
     "renounceOwnership()": FunctionFragment;
     "repay(address,uint256,address)": FunctionFragment;
@@ -251,8 +252,11 @@ export interface MorphoAaveV3Interface extends utils.Interface {
     "scaledP2PSupplyBalance(address,address)": FunctionFragment;
     "scaledPoolBorrowBalance(address,address)": FunctionFragment;
     "scaledPoolSupplyBalance(address,address)": FunctionFragment;
-    "setDefaultMaxIterations((uint64,uint64))": FunctionFragment;
+    "setAssetIsCollateral(address,bool)": FunctionFragment;
+    "setAssetIsCollateralOnPool(address,bool)": FunctionFragment;
+    "setDefaultIterations((uint128,uint128))": FunctionFragment;
     "setIsBorrowPaused(address,bool)": FunctionFragment;
+    "setIsClaimRewardsPaused(bool)": FunctionFragment;
     "setIsDeprecated(address,bool)": FunctionFragment;
     "setIsLiquidateBorrowPaused(address,bool)": FunctionFragment;
     "setIsLiquidateCollateralPaused(address,bool)": FunctionFragment;
@@ -280,17 +284,15 @@ export interface MorphoAaveV3Interface extends utils.Interface {
     "userBorrows(address)": FunctionFragment;
     "userCollaterals(address)": FunctionFragment;
     "userNonce(address)": FunctionFragment;
-    "withdraw(address,uint256,address,address)": FunctionFragment;
+    "withdraw(address,uint256,address,address,uint256)": FunctionFragment;
     "withdrawCollateral(address,uint256,address,address)": FunctionFragment;
   };
 
   getFunction(
     nameOrSignatureOrTopic:
-      | "ADDRESSES_PROVIDER"
       | "DOMAIN_SEPARATOR"
-      | "E_MODE_CATEGORY_ID"
-      | "POOL"
       | "acceptOwnership"
+      | "addressesProvider"
       | "approveManager"
       | "approveManagerWithSig"
       | "borrow"
@@ -299,7 +301,8 @@ export interface MorphoAaveV3Interface extends utils.Interface {
       | "claimToTreasury"
       | "collateralBalance"
       | "createMarket"
-      | "defaultMaxIterations"
+      | "defaultIterations"
+      | "eModeCategoryId"
       | "getBucketsMask"
       | "getNext"
       | "increaseP2PDeltas"
@@ -312,6 +315,7 @@ export interface MorphoAaveV3Interface extends utils.Interface {
       | "marketsCreated"
       | "owner"
       | "pendingOwner"
+      | "pool"
       | "positionsManager"
       | "renounceOwnership"
       | "repay"
@@ -322,8 +326,11 @@ export interface MorphoAaveV3Interface extends utils.Interface {
       | "scaledP2PSupplyBalance"
       | "scaledPoolBorrowBalance"
       | "scaledPoolSupplyBalance"
-      | "setDefaultMaxIterations"
+      | "setAssetIsCollateral"
+      | "setAssetIsCollateralOnPool"
+      | "setDefaultIterations"
       | "setIsBorrowPaused"
+      | "setIsClaimRewardsPaused"
       | "setIsDeprecated"
       | "setIsLiquidateBorrowPaused"
       | "setIsLiquidateCollateralPaused"
@@ -356,20 +363,15 @@ export interface MorphoAaveV3Interface extends utils.Interface {
   ): FunctionFragment;
 
   encodeFunctionData(
-    functionFragment: "ADDRESSES_PROVIDER",
-    values?: undefined
-  ): string;
-  encodeFunctionData(
     functionFragment: "DOMAIN_SEPARATOR",
     values?: undefined
   ): string;
   encodeFunctionData(
-    functionFragment: "E_MODE_CATEGORY_ID",
+    functionFragment: "acceptOwnership",
     values?: undefined
   ): string;
-  encodeFunctionData(functionFragment: "POOL", values?: undefined): string;
   encodeFunctionData(
-    functionFragment: "acceptOwnership",
+    functionFragment: "addressesProvider",
     values?: undefined
   ): string;
   encodeFunctionData(
@@ -422,7 +424,11 @@ export interface MorphoAaveV3Interface extends utils.Interface {
     ]
   ): string;
   encodeFunctionData(
-    functionFragment: "defaultMaxIterations",
+    functionFragment: "defaultIterations",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "eModeCategoryId",
     values?: undefined
   ): string;
   encodeFunctionData(
@@ -443,7 +449,12 @@ export interface MorphoAaveV3Interface extends utils.Interface {
   ): string;
   encodeFunctionData(
     functionFragment: "initialize",
-    values: [PromiseOrValue<string>, Types.MaxIterationsStruct]
+    values: [
+      PromiseOrValue<string>,
+      PromiseOrValue<BigNumberish>,
+      PromiseOrValue<string>,
+      Types.IterationsStruct
+    ]
   ): string;
   encodeFunctionData(
     functionFragment: "isClaimRewardsPaused",
@@ -464,12 +475,7 @@ export interface MorphoAaveV3Interface extends utils.Interface {
   ): string;
   encodeFunctionData(
     functionFragment: "liquidityData",
-    values: [
-      PromiseOrValue<string>,
-      PromiseOrValue<string>,
-      PromiseOrValue<BigNumberish>,
-      PromiseOrValue<BigNumberish>
-    ]
+    values: [PromiseOrValue<string>]
   ): string;
   encodeFunctionData(
     functionFragment: "market",
@@ -484,6 +490,7 @@ export interface MorphoAaveV3Interface extends utils.Interface {
     functionFragment: "pendingOwner",
     values?: undefined
   ): string;
+  encodeFunctionData(functionFragment: "pool", values?: undefined): string;
   encodeFunctionData(
     functionFragment: "positionsManager",
     values?: undefined
@@ -535,12 +542,24 @@ export interface MorphoAaveV3Interface extends utils.Interface {
     values: [PromiseOrValue<string>, PromiseOrValue<string>]
   ): string;
   encodeFunctionData(
-    functionFragment: "setDefaultMaxIterations",
-    values: [Types.MaxIterationsStruct]
+    functionFragment: "setAssetIsCollateral",
+    values: [PromiseOrValue<string>, PromiseOrValue<boolean>]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "setAssetIsCollateralOnPool",
+    values: [PromiseOrValue<string>, PromiseOrValue<boolean>]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "setDefaultIterations",
+    values: [Types.IterationsStruct]
   ): string;
   encodeFunctionData(
     functionFragment: "setIsBorrowPaused",
     values: [PromiseOrValue<string>, PromiseOrValue<boolean>]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "setIsClaimRewardsPaused",
+    values: [PromiseOrValue<boolean>]
   ): string;
   encodeFunctionData(
     functionFragment: "setIsDeprecated",
@@ -678,7 +697,8 @@ export interface MorphoAaveV3Interface extends utils.Interface {
       PromiseOrValue<string>,
       PromiseOrValue<BigNumberish>,
       PromiseOrValue<string>,
-      PromiseOrValue<string>
+      PromiseOrValue<string>,
+      PromiseOrValue<BigNumberish>
     ]
   ): string;
   encodeFunctionData(
@@ -692,20 +712,15 @@ export interface MorphoAaveV3Interface extends utils.Interface {
   ): string;
 
   decodeFunctionResult(
-    functionFragment: "ADDRESSES_PROVIDER",
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
     functionFragment: "DOMAIN_SEPARATOR",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
-    functionFragment: "E_MODE_CATEGORY_ID",
+    functionFragment: "acceptOwnership",
     data: BytesLike
   ): Result;
-  decodeFunctionResult(functionFragment: "POOL", data: BytesLike): Result;
   decodeFunctionResult(
-    functionFragment: "acceptOwnership",
+    functionFragment: "addressesProvider",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -738,7 +753,11 @@ export interface MorphoAaveV3Interface extends utils.Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
-    functionFragment: "defaultMaxIterations",
+    functionFragment: "defaultIterations",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "eModeCategoryId",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -771,6 +790,7 @@ export interface MorphoAaveV3Interface extends utils.Interface {
     functionFragment: "pendingOwner",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(functionFragment: "pool", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "positionsManager",
     data: BytesLike
@@ -809,11 +829,23 @@ export interface MorphoAaveV3Interface extends utils.Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
-    functionFragment: "setDefaultMaxIterations",
+    functionFragment: "setAssetIsCollateral",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "setAssetIsCollateralOnPool",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "setDefaultIterations",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
     functionFragment: "setIsBorrowPaused",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "setIsClaimRewardsPaused",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -928,91 +960,11 @@ export interface MorphoAaveV3Interface extends utils.Interface {
     "Initialized(uint8)": EventFragment;
     "OwnershipTransferStarted(address,address)": EventFragment;
     "OwnershipTransferred(address,address)": EventFragment;
-    "BorrowPositionUpdated(address,address,uint256,uint256)": EventFragment;
-    "Borrowed(address,address,address,address,uint256,uint256,uint256)": EventFragment;
-    "CollateralSupplied(address,address,address,uint256,uint256)": EventFragment;
-    "CollateralWithdrawn(address,address,address,address,uint256,uint256)": EventFragment;
-    "DefaultMaxIterationsSet(uint64,uint64)": EventFragment;
-    "EModeSet(uint8)": EventFragment;
-    "IdleSupplyUpdated(address,uint256)": EventFragment;
-    "IndexesUpdated(address,uint256,uint256,uint256,uint256)": EventFragment;
-    "IsBorrowPausedSet(address,bool)": EventFragment;
-    "IsDeprecatedSet(address,bool)": EventFragment;
-    "IsLiquidateBorrowPausedSet(address,bool)": EventFragment;
-    "IsLiquidateCollateralPausedSet(address,bool)": EventFragment;
-    "IsP2PDisabledSet(address,bool)": EventFragment;
-    "IsRepayPausedSet(address,bool)": EventFragment;
-    "IsSupplyCollateralPausedSet(address,bool)": EventFragment;
-    "IsSupplyPausedSet(address,bool)": EventFragment;
-    "IsWithdrawCollateralPausedSet(address,bool)": EventFragment;
-    "IsWithdrawPausedSet(address,bool)": EventFragment;
-    "Liquidated(address,address,address,uint256,address,uint256)": EventFragment;
-    "ManagerApproval(address,address,bool)": EventFragment;
-    "MarketCreated(address)": EventFragment;
-    "P2PBorrowDeltaUpdated(address,uint256)": EventFragment;
-    "P2PDeltasIncreased(address,uint256)": EventFragment;
-    "P2PIndexCursorSet(address,uint16)": EventFragment;
-    "P2PSupplyDeltaUpdated(address,uint256)": EventFragment;
-    "P2PTotalsUpdated(address,uint256,uint256)": EventFragment;
-    "PositionsManagerSet(address)": EventFragment;
-    "Repaid(address,address,address,uint256,uint256,uint256)": EventFragment;
-    "ReserveFactorSet(address,uint16)": EventFragment;
-    "ReserveFeeClaimed(address,uint256)": EventFragment;
-    "RewardsClaimed(address,address,address,uint256)": EventFragment;
-    "RewardsManagerSet(address)": EventFragment;
-    "Supplied(address,address,address,uint256,uint256,uint256)": EventFragment;
-    "SupplyPositionUpdated(address,address,uint256,uint256)": EventFragment;
-    "TreasuryVaultSet(address)": EventFragment;
-    "UserNonceIncremented(address,address,uint256)": EventFragment;
-    "Withdrawn(address,address,address,address,uint256,uint256,uint256)": EventFragment;
   };
 
   getEvent(nameOrSignatureOrTopic: "Initialized"): EventFragment;
   getEvent(nameOrSignatureOrTopic: "OwnershipTransferStarted"): EventFragment;
   getEvent(nameOrSignatureOrTopic: "OwnershipTransferred"): EventFragment;
-  getEvent(nameOrSignatureOrTopic: "BorrowPositionUpdated"): EventFragment;
-  getEvent(nameOrSignatureOrTopic: "Borrowed"): EventFragment;
-  getEvent(nameOrSignatureOrTopic: "CollateralSupplied"): EventFragment;
-  getEvent(nameOrSignatureOrTopic: "CollateralWithdrawn"): EventFragment;
-  getEvent(nameOrSignatureOrTopic: "DefaultMaxIterationsSet"): EventFragment;
-  getEvent(nameOrSignatureOrTopic: "EModeSet"): EventFragment;
-  getEvent(nameOrSignatureOrTopic: "IdleSupplyUpdated"): EventFragment;
-  getEvent(nameOrSignatureOrTopic: "IndexesUpdated"): EventFragment;
-  getEvent(nameOrSignatureOrTopic: "IsBorrowPausedSet"): EventFragment;
-  getEvent(nameOrSignatureOrTopic: "IsDeprecatedSet"): EventFragment;
-  getEvent(nameOrSignatureOrTopic: "IsLiquidateBorrowPausedSet"): EventFragment;
-  getEvent(
-    nameOrSignatureOrTopic: "IsLiquidateCollateralPausedSet"
-  ): EventFragment;
-  getEvent(nameOrSignatureOrTopic: "IsP2PDisabledSet"): EventFragment;
-  getEvent(nameOrSignatureOrTopic: "IsRepayPausedSet"): EventFragment;
-  getEvent(
-    nameOrSignatureOrTopic: "IsSupplyCollateralPausedSet"
-  ): EventFragment;
-  getEvent(nameOrSignatureOrTopic: "IsSupplyPausedSet"): EventFragment;
-  getEvent(
-    nameOrSignatureOrTopic: "IsWithdrawCollateralPausedSet"
-  ): EventFragment;
-  getEvent(nameOrSignatureOrTopic: "IsWithdrawPausedSet"): EventFragment;
-  getEvent(nameOrSignatureOrTopic: "Liquidated"): EventFragment;
-  getEvent(nameOrSignatureOrTopic: "ManagerApproval"): EventFragment;
-  getEvent(nameOrSignatureOrTopic: "MarketCreated"): EventFragment;
-  getEvent(nameOrSignatureOrTopic: "P2PBorrowDeltaUpdated"): EventFragment;
-  getEvent(nameOrSignatureOrTopic: "P2PDeltasIncreased"): EventFragment;
-  getEvent(nameOrSignatureOrTopic: "P2PIndexCursorSet"): EventFragment;
-  getEvent(nameOrSignatureOrTopic: "P2PSupplyDeltaUpdated"): EventFragment;
-  getEvent(nameOrSignatureOrTopic: "P2PTotalsUpdated"): EventFragment;
-  getEvent(nameOrSignatureOrTopic: "PositionsManagerSet"): EventFragment;
-  getEvent(nameOrSignatureOrTopic: "Repaid"): EventFragment;
-  getEvent(nameOrSignatureOrTopic: "ReserveFactorSet"): EventFragment;
-  getEvent(nameOrSignatureOrTopic: "ReserveFeeClaimed"): EventFragment;
-  getEvent(nameOrSignatureOrTopic: "RewardsClaimed"): EventFragment;
-  getEvent(nameOrSignatureOrTopic: "RewardsManagerSet"): EventFragment;
-  getEvent(nameOrSignatureOrTopic: "Supplied"): EventFragment;
-  getEvent(nameOrSignatureOrTopic: "SupplyPositionUpdated"): EventFragment;
-  getEvent(nameOrSignatureOrTopic: "TreasuryVaultSet"): EventFragment;
-  getEvent(nameOrSignatureOrTopic: "UserNonceIncremented"): EventFragment;
-  getEvent(nameOrSignatureOrTopic: "Withdrawn"): EventFragment;
 }
 
 export interface InitializedEventObject {
@@ -1046,469 +998,6 @@ export type OwnershipTransferredEvent = TypedEvent<
 export type OwnershipTransferredEventFilter =
   TypedEventFilter<OwnershipTransferredEvent>;
 
-export interface BorrowPositionUpdatedEventObject {
-  user: string;
-  underlying: string;
-  scaledOnPool: BigNumber;
-  scaledInP2P: BigNumber;
-}
-export type BorrowPositionUpdatedEvent = TypedEvent<
-  [string, string, BigNumber, BigNumber],
-  BorrowPositionUpdatedEventObject
->;
-
-export type BorrowPositionUpdatedEventFilter =
-  TypedEventFilter<BorrowPositionUpdatedEvent>;
-
-export interface BorrowedEventObject {
-  caller: string;
-  onBehalf: string;
-  receiver: string;
-  underlying: string;
-  amount: BigNumber;
-  scaledOnPool: BigNumber;
-  scaledInP2P: BigNumber;
-}
-export type BorrowedEvent = TypedEvent<
-  [string, string, string, string, BigNumber, BigNumber, BigNumber],
-  BorrowedEventObject
->;
-
-export type BorrowedEventFilter = TypedEventFilter<BorrowedEvent>;
-
-export interface CollateralSuppliedEventObject {
-  from: string;
-  onBehalf: string;
-  underlying: string;
-  amount: BigNumber;
-  scaledBalance: BigNumber;
-}
-export type CollateralSuppliedEvent = TypedEvent<
-  [string, string, string, BigNumber, BigNumber],
-  CollateralSuppliedEventObject
->;
-
-export type CollateralSuppliedEventFilter =
-  TypedEventFilter<CollateralSuppliedEvent>;
-
-export interface CollateralWithdrawnEventObject {
-  caller: string;
-  onBehalf: string;
-  receiver: string;
-  underlying: string;
-  amount: BigNumber;
-  scaledBalance: BigNumber;
-}
-export type CollateralWithdrawnEvent = TypedEvent<
-  [string, string, string, string, BigNumber, BigNumber],
-  CollateralWithdrawnEventObject
->;
-
-export type CollateralWithdrawnEventFilter =
-  TypedEventFilter<CollateralWithdrawnEvent>;
-
-export interface DefaultMaxIterationsSetEventObject {
-  repay: BigNumber;
-  withdraw: BigNumber;
-}
-export type DefaultMaxIterationsSetEvent = TypedEvent<
-  [BigNumber, BigNumber],
-  DefaultMaxIterationsSetEventObject
->;
-
-export type DefaultMaxIterationsSetEventFilter =
-  TypedEventFilter<DefaultMaxIterationsSetEvent>;
-
-export interface EModeSetEventObject {
-  categoryId: number;
-}
-export type EModeSetEvent = TypedEvent<[number], EModeSetEventObject>;
-
-export type EModeSetEventFilter = TypedEventFilter<EModeSetEvent>;
-
-export interface IdleSupplyUpdatedEventObject {
-  underlying: string;
-  idleSupply: BigNumber;
-}
-export type IdleSupplyUpdatedEvent = TypedEvent<
-  [string, BigNumber],
-  IdleSupplyUpdatedEventObject
->;
-
-export type IdleSupplyUpdatedEventFilter =
-  TypedEventFilter<IdleSupplyUpdatedEvent>;
-
-export interface IndexesUpdatedEventObject {
-  underlying: string;
-  poolSupplyIndex: BigNumber;
-  p2pSupplyIndex: BigNumber;
-  poolBorrowIndex: BigNumber;
-  p2pBorrowIndex: BigNumber;
-}
-export type IndexesUpdatedEvent = TypedEvent<
-  [string, BigNumber, BigNumber, BigNumber, BigNumber],
-  IndexesUpdatedEventObject
->;
-
-export type IndexesUpdatedEventFilter = TypedEventFilter<IndexesUpdatedEvent>;
-
-export interface IsBorrowPausedSetEventObject {
-  underlying: string;
-  isPaused: boolean;
-}
-export type IsBorrowPausedSetEvent = TypedEvent<
-  [string, boolean],
-  IsBorrowPausedSetEventObject
->;
-
-export type IsBorrowPausedSetEventFilter =
-  TypedEventFilter<IsBorrowPausedSetEvent>;
-
-export interface IsDeprecatedSetEventObject {
-  underlying: string;
-  isDeprecated: boolean;
-}
-export type IsDeprecatedSetEvent = TypedEvent<
-  [string, boolean],
-  IsDeprecatedSetEventObject
->;
-
-export type IsDeprecatedSetEventFilter = TypedEventFilter<IsDeprecatedSetEvent>;
-
-export interface IsLiquidateBorrowPausedSetEventObject {
-  underlying: string;
-  isPaused: boolean;
-}
-export type IsLiquidateBorrowPausedSetEvent = TypedEvent<
-  [string, boolean],
-  IsLiquidateBorrowPausedSetEventObject
->;
-
-export type IsLiquidateBorrowPausedSetEventFilter =
-  TypedEventFilter<IsLiquidateBorrowPausedSetEvent>;
-
-export interface IsLiquidateCollateralPausedSetEventObject {
-  underlying: string;
-  isPaused: boolean;
-}
-export type IsLiquidateCollateralPausedSetEvent = TypedEvent<
-  [string, boolean],
-  IsLiquidateCollateralPausedSetEventObject
->;
-
-export type IsLiquidateCollateralPausedSetEventFilter =
-  TypedEventFilter<IsLiquidateCollateralPausedSetEvent>;
-
-export interface IsP2PDisabledSetEventObject {
-  underlying: string;
-  isP2PDisabled: boolean;
-}
-export type IsP2PDisabledSetEvent = TypedEvent<
-  [string, boolean],
-  IsP2PDisabledSetEventObject
->;
-
-export type IsP2PDisabledSetEventFilter =
-  TypedEventFilter<IsP2PDisabledSetEvent>;
-
-export interface IsRepayPausedSetEventObject {
-  underlying: string;
-  isPaused: boolean;
-}
-export type IsRepayPausedSetEvent = TypedEvent<
-  [string, boolean],
-  IsRepayPausedSetEventObject
->;
-
-export type IsRepayPausedSetEventFilter =
-  TypedEventFilter<IsRepayPausedSetEvent>;
-
-export interface IsSupplyCollateralPausedSetEventObject {
-  underlying: string;
-  isPaused: boolean;
-}
-export type IsSupplyCollateralPausedSetEvent = TypedEvent<
-  [string, boolean],
-  IsSupplyCollateralPausedSetEventObject
->;
-
-export type IsSupplyCollateralPausedSetEventFilter =
-  TypedEventFilter<IsSupplyCollateralPausedSetEvent>;
-
-export interface IsSupplyPausedSetEventObject {
-  underlying: string;
-  isPaused: boolean;
-}
-export type IsSupplyPausedSetEvent = TypedEvent<
-  [string, boolean],
-  IsSupplyPausedSetEventObject
->;
-
-export type IsSupplyPausedSetEventFilter =
-  TypedEventFilter<IsSupplyPausedSetEvent>;
-
-export interface IsWithdrawCollateralPausedSetEventObject {
-  underlying: string;
-  isPaused: boolean;
-}
-export type IsWithdrawCollateralPausedSetEvent = TypedEvent<
-  [string, boolean],
-  IsWithdrawCollateralPausedSetEventObject
->;
-
-export type IsWithdrawCollateralPausedSetEventFilter =
-  TypedEventFilter<IsWithdrawCollateralPausedSetEvent>;
-
-export interface IsWithdrawPausedSetEventObject {
-  underlying: string;
-  isPaused: boolean;
-}
-export type IsWithdrawPausedSetEvent = TypedEvent<
-  [string, boolean],
-  IsWithdrawPausedSetEventObject
->;
-
-export type IsWithdrawPausedSetEventFilter =
-  TypedEventFilter<IsWithdrawPausedSetEvent>;
-
-export interface LiquidatedEventObject {
-  liquidator: string;
-  borrower: string;
-  underlyingBorrowed: string;
-  amountLiquidated: BigNumber;
-  underlyingCollateral: string;
-  amountSeized: BigNumber;
-}
-export type LiquidatedEvent = TypedEvent<
-  [string, string, string, BigNumber, string, BigNumber],
-  LiquidatedEventObject
->;
-
-export type LiquidatedEventFilter = TypedEventFilter<LiquidatedEvent>;
-
-export interface ManagerApprovalEventObject {
-  delegator: string;
-  manager: string;
-  isAllowed: boolean;
-}
-export type ManagerApprovalEvent = TypedEvent<
-  [string, string, boolean],
-  ManagerApprovalEventObject
->;
-
-export type ManagerApprovalEventFilter = TypedEventFilter<ManagerApprovalEvent>;
-
-export interface MarketCreatedEventObject {
-  underlying: string;
-}
-export type MarketCreatedEvent = TypedEvent<[string], MarketCreatedEventObject>;
-
-export type MarketCreatedEventFilter = TypedEventFilter<MarketCreatedEvent>;
-
-export interface P2PBorrowDeltaUpdatedEventObject {
-  underlying: string;
-  borrowDelta: BigNumber;
-}
-export type P2PBorrowDeltaUpdatedEvent = TypedEvent<
-  [string, BigNumber],
-  P2PBorrowDeltaUpdatedEventObject
->;
-
-export type P2PBorrowDeltaUpdatedEventFilter =
-  TypedEventFilter<P2PBorrowDeltaUpdatedEvent>;
-
-export interface P2PDeltasIncreasedEventObject {
-  underlying: string;
-  amount: BigNumber;
-}
-export type P2PDeltasIncreasedEvent = TypedEvent<
-  [string, BigNumber],
-  P2PDeltasIncreasedEventObject
->;
-
-export type P2PDeltasIncreasedEventFilter =
-  TypedEventFilter<P2PDeltasIncreasedEvent>;
-
-export interface P2PIndexCursorSetEventObject {
-  underlying: string;
-  p2pIndexCursor: number;
-}
-export type P2PIndexCursorSetEvent = TypedEvent<
-  [string, number],
-  P2PIndexCursorSetEventObject
->;
-
-export type P2PIndexCursorSetEventFilter =
-  TypedEventFilter<P2PIndexCursorSetEvent>;
-
-export interface P2PSupplyDeltaUpdatedEventObject {
-  underlying: string;
-  supplyDelta: BigNumber;
-}
-export type P2PSupplyDeltaUpdatedEvent = TypedEvent<
-  [string, BigNumber],
-  P2PSupplyDeltaUpdatedEventObject
->;
-
-export type P2PSupplyDeltaUpdatedEventFilter =
-  TypedEventFilter<P2PSupplyDeltaUpdatedEvent>;
-
-export interface P2PTotalsUpdatedEventObject {
-  underlying: string;
-  scaledTotalSupplyP2P: BigNumber;
-  scaledTotalBorrowP2P: BigNumber;
-}
-export type P2PTotalsUpdatedEvent = TypedEvent<
-  [string, BigNumber, BigNumber],
-  P2PTotalsUpdatedEventObject
->;
-
-export type P2PTotalsUpdatedEventFilter =
-  TypedEventFilter<P2PTotalsUpdatedEvent>;
-
-export interface PositionsManagerSetEventObject {
-  positionsManager: string;
-}
-export type PositionsManagerSetEvent = TypedEvent<
-  [string],
-  PositionsManagerSetEventObject
->;
-
-export type PositionsManagerSetEventFilter =
-  TypedEventFilter<PositionsManagerSetEvent>;
-
-export interface RepaidEventObject {
-  repayer: string;
-  onBehalf: string;
-  underlying: string;
-  amount: BigNumber;
-  scaledOnPool: BigNumber;
-  scaledInP2P: BigNumber;
-}
-export type RepaidEvent = TypedEvent<
-  [string, string, string, BigNumber, BigNumber, BigNumber],
-  RepaidEventObject
->;
-
-export type RepaidEventFilter = TypedEventFilter<RepaidEvent>;
-
-export interface ReserveFactorSetEventObject {
-  underlying: string;
-  reserveFactor: number;
-}
-export type ReserveFactorSetEvent = TypedEvent<
-  [string, number],
-  ReserveFactorSetEventObject
->;
-
-export type ReserveFactorSetEventFilter =
-  TypedEventFilter<ReserveFactorSetEvent>;
-
-export interface ReserveFeeClaimedEventObject {
-  underlying: string;
-  claimed: BigNumber;
-}
-export type ReserveFeeClaimedEvent = TypedEvent<
-  [string, BigNumber],
-  ReserveFeeClaimedEventObject
->;
-
-export type ReserveFeeClaimedEventFilter =
-  TypedEventFilter<ReserveFeeClaimedEvent>;
-
-export interface RewardsClaimedEventObject {
-  claimer: string;
-  onBehalf: string;
-  rewardToken: string;
-  amountClaimed: BigNumber;
-}
-export type RewardsClaimedEvent = TypedEvent<
-  [string, string, string, BigNumber],
-  RewardsClaimedEventObject
->;
-
-export type RewardsClaimedEventFilter = TypedEventFilter<RewardsClaimedEvent>;
-
-export interface RewardsManagerSetEventObject {
-  rewardsManager: string;
-}
-export type RewardsManagerSetEvent = TypedEvent<
-  [string],
-  RewardsManagerSetEventObject
->;
-
-export type RewardsManagerSetEventFilter =
-  TypedEventFilter<RewardsManagerSetEvent>;
-
-export interface SuppliedEventObject {
-  from: string;
-  onBehalf: string;
-  underlying: string;
-  amount: BigNumber;
-  scaledOnPool: BigNumber;
-  scaledInP2P: BigNumber;
-}
-export type SuppliedEvent = TypedEvent<
-  [string, string, string, BigNumber, BigNumber, BigNumber],
-  SuppliedEventObject
->;
-
-export type SuppliedEventFilter = TypedEventFilter<SuppliedEvent>;
-
-export interface SupplyPositionUpdatedEventObject {
-  user: string;
-  underlying: string;
-  scaledOnPool: BigNumber;
-  scaledInP2P: BigNumber;
-}
-export type SupplyPositionUpdatedEvent = TypedEvent<
-  [string, string, BigNumber, BigNumber],
-  SupplyPositionUpdatedEventObject
->;
-
-export type SupplyPositionUpdatedEventFilter =
-  TypedEventFilter<SupplyPositionUpdatedEvent>;
-
-export interface TreasuryVaultSetEventObject {
-  treasuryVault: string;
-}
-export type TreasuryVaultSetEvent = TypedEvent<
-  [string],
-  TreasuryVaultSetEventObject
->;
-
-export type TreasuryVaultSetEventFilter =
-  TypedEventFilter<TreasuryVaultSetEvent>;
-
-export interface UserNonceIncrementedEventObject {
-  manager: string;
-  signatory: string;
-  usedNonce: BigNumber;
-}
-export type UserNonceIncrementedEvent = TypedEvent<
-  [string, string, BigNumber],
-  UserNonceIncrementedEventObject
->;
-
-export type UserNonceIncrementedEventFilter =
-  TypedEventFilter<UserNonceIncrementedEvent>;
-
-export interface WithdrawnEventObject {
-  caller: string;
-  onBehalf: string;
-  receiver: string;
-  underlying: string;
-  amount: BigNumber;
-  scaledOnPool: BigNumber;
-  scaledInP2P: BigNumber;
-}
-export type WithdrawnEvent = TypedEvent<
-  [string, string, string, string, BigNumber, BigNumber, BigNumber],
-  WithdrawnEventObject
->;
-
-export type WithdrawnEventFilter = TypedEventFilter<WithdrawnEvent>;
-
 export interface MorphoAaveV3 extends BaseContract {
   connect(signerOrProvider: Signer | Provider | string): this;
   attach(addressOrName: string): this;
@@ -1536,17 +1025,13 @@ export interface MorphoAaveV3 extends BaseContract {
   removeListener: OnEvent<this>;
 
   functions: {
-    ADDRESSES_PROVIDER(overrides?: CallOverrides): Promise<[string]>;
-
     DOMAIN_SEPARATOR(overrides?: CallOverrides): Promise<[string]>;
-
-    E_MODE_CATEGORY_ID(overrides?: CallOverrides): Promise<[BigNumber]>;
-
-    POOL(overrides?: CallOverrides): Promise<[string]>;
 
     acceptOwnership(
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<ContractTransaction>;
+
+    addressesProvider(overrides?: CallOverrides): Promise<[string]>;
 
     approveManager(
       manager: PromiseOrValue<string>,
@@ -1604,9 +1089,11 @@ export interface MorphoAaveV3 extends BaseContract {
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<ContractTransaction>;
 
-    defaultMaxIterations(
+    defaultIterations(
       overrides?: CallOverrides
-    ): Promise<[Types.MaxIterationsStructOutput]>;
+    ): Promise<[Types.IterationsStructOutput]>;
+
+    eModeCategoryId(overrides?: CallOverrides): Promise<[BigNumber]>;
 
     getBucketsMask(
       underlying: PromiseOrValue<string>,
@@ -1628,8 +1115,10 @@ export interface MorphoAaveV3 extends BaseContract {
     ): Promise<ContractTransaction>;
 
     initialize(
-      newPositionsManager: PromiseOrValue<string>,
-      newDefaultMaxIterations: Types.MaxIterationsStruct,
+      addressesProvider: PromiseOrValue<string>,
+      eModeCategoryId: PromiseOrValue<BigNumberish>,
+      positionsManager: PromiseOrValue<string>,
+      defaultIterations: Types.IterationsStruct,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<ContractTransaction>;
 
@@ -1650,10 +1139,7 @@ export interface MorphoAaveV3 extends BaseContract {
     ): Promise<ContractTransaction>;
 
     liquidityData(
-      underlying: PromiseOrValue<string>,
       user: PromiseOrValue<string>,
-      amountWithdrawn: PromiseOrValue<BigNumberish>,
-      amountBorrowed: PromiseOrValue<BigNumberish>,
       overrides?: CallOverrides
     ): Promise<[Types.LiquidityDataStructOutput]>;
 
@@ -1667,6 +1153,8 @@ export interface MorphoAaveV3 extends BaseContract {
     owner(overrides?: CallOverrides): Promise<[string]>;
 
     pendingOwner(overrides?: CallOverrides): Promise<[string]>;
+
+    pool(overrides?: CallOverrides): Promise<[string]>;
 
     positionsManager(overrides?: CallOverrides): Promise<[string]>;
 
@@ -1722,13 +1210,30 @@ export interface MorphoAaveV3 extends BaseContract {
       overrides?: CallOverrides
     ): Promise<[BigNumber]>;
 
-    setDefaultMaxIterations(
-      defaultMaxIterations: Types.MaxIterationsStruct,
+    setAssetIsCollateral(
+      underlying: PromiseOrValue<string>,
+      isCollateral: PromiseOrValue<boolean>,
+      overrides?: Overrides & { from?: PromiseOrValue<string> }
+    ): Promise<ContractTransaction>;
+
+    setAssetIsCollateralOnPool(
+      underlying: PromiseOrValue<string>,
+      isCollateral: PromiseOrValue<boolean>,
+      overrides?: Overrides & { from?: PromiseOrValue<string> }
+    ): Promise<ContractTransaction>;
+
+    setDefaultIterations(
+      defaultIterations: Types.IterationsStruct,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<ContractTransaction>;
 
     setIsBorrowPaused(
       underlying: PromiseOrValue<string>,
+      isPaused: PromiseOrValue<boolean>,
+      overrides?: Overrides & { from?: PromiseOrValue<string> }
+    ): Promise<ContractTransaction>;
+
+    setIsClaimRewardsPaused(
       isPaused: PromiseOrValue<boolean>,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<ContractTransaction>;
@@ -1899,6 +1404,7 @@ export interface MorphoAaveV3 extends BaseContract {
       amount: PromiseOrValue<BigNumberish>,
       onBehalf: PromiseOrValue<string>,
       receiver: PromiseOrValue<string>,
+      maxIterations: PromiseOrValue<BigNumberish>,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<ContractTransaction>;
 
@@ -1911,17 +1417,13 @@ export interface MorphoAaveV3 extends BaseContract {
     ): Promise<ContractTransaction>;
   };
 
-  ADDRESSES_PROVIDER(overrides?: CallOverrides): Promise<string>;
-
   DOMAIN_SEPARATOR(overrides?: CallOverrides): Promise<string>;
-
-  E_MODE_CATEGORY_ID(overrides?: CallOverrides): Promise<BigNumber>;
-
-  POOL(overrides?: CallOverrides): Promise<string>;
 
   acceptOwnership(
     overrides?: Overrides & { from?: PromiseOrValue<string> }
   ): Promise<ContractTransaction>;
+
+  addressesProvider(overrides?: CallOverrides): Promise<string>;
 
   approveManager(
     manager: PromiseOrValue<string>,
@@ -1979,9 +1481,11 @@ export interface MorphoAaveV3 extends BaseContract {
     overrides?: Overrides & { from?: PromiseOrValue<string> }
   ): Promise<ContractTransaction>;
 
-  defaultMaxIterations(
+  defaultIterations(
     overrides?: CallOverrides
-  ): Promise<Types.MaxIterationsStructOutput>;
+  ): Promise<Types.IterationsStructOutput>;
+
+  eModeCategoryId(overrides?: CallOverrides): Promise<BigNumber>;
 
   getBucketsMask(
     underlying: PromiseOrValue<string>,
@@ -2003,8 +1507,10 @@ export interface MorphoAaveV3 extends BaseContract {
   ): Promise<ContractTransaction>;
 
   initialize(
-    newPositionsManager: PromiseOrValue<string>,
-    newDefaultMaxIterations: Types.MaxIterationsStruct,
+    addressesProvider: PromiseOrValue<string>,
+    eModeCategoryId: PromiseOrValue<BigNumberish>,
+    positionsManager: PromiseOrValue<string>,
+    defaultIterations: Types.IterationsStruct,
     overrides?: Overrides & { from?: PromiseOrValue<string> }
   ): Promise<ContractTransaction>;
 
@@ -2025,10 +1531,7 @@ export interface MorphoAaveV3 extends BaseContract {
   ): Promise<ContractTransaction>;
 
   liquidityData(
-    underlying: PromiseOrValue<string>,
     user: PromiseOrValue<string>,
-    amountWithdrawn: PromiseOrValue<BigNumberish>,
-    amountBorrowed: PromiseOrValue<BigNumberish>,
     overrides?: CallOverrides
   ): Promise<Types.LiquidityDataStructOutput>;
 
@@ -2042,6 +1545,8 @@ export interface MorphoAaveV3 extends BaseContract {
   owner(overrides?: CallOverrides): Promise<string>;
 
   pendingOwner(overrides?: CallOverrides): Promise<string>;
+
+  pool(overrides?: CallOverrides): Promise<string>;
 
   positionsManager(overrides?: CallOverrides): Promise<string>;
 
@@ -2097,13 +1602,30 @@ export interface MorphoAaveV3 extends BaseContract {
     overrides?: CallOverrides
   ): Promise<BigNumber>;
 
-  setDefaultMaxIterations(
-    defaultMaxIterations: Types.MaxIterationsStruct,
+  setAssetIsCollateral(
+    underlying: PromiseOrValue<string>,
+    isCollateral: PromiseOrValue<boolean>,
+    overrides?: Overrides & { from?: PromiseOrValue<string> }
+  ): Promise<ContractTransaction>;
+
+  setAssetIsCollateralOnPool(
+    underlying: PromiseOrValue<string>,
+    isCollateral: PromiseOrValue<boolean>,
+    overrides?: Overrides & { from?: PromiseOrValue<string> }
+  ): Promise<ContractTransaction>;
+
+  setDefaultIterations(
+    defaultIterations: Types.IterationsStruct,
     overrides?: Overrides & { from?: PromiseOrValue<string> }
   ): Promise<ContractTransaction>;
 
   setIsBorrowPaused(
     underlying: PromiseOrValue<string>,
+    isPaused: PromiseOrValue<boolean>,
+    overrides?: Overrides & { from?: PromiseOrValue<string> }
+  ): Promise<ContractTransaction>;
+
+  setIsClaimRewardsPaused(
     isPaused: PromiseOrValue<boolean>,
     overrides?: Overrides & { from?: PromiseOrValue<string> }
   ): Promise<ContractTransaction>;
@@ -2272,6 +1794,7 @@ export interface MorphoAaveV3 extends BaseContract {
     amount: PromiseOrValue<BigNumberish>,
     onBehalf: PromiseOrValue<string>,
     receiver: PromiseOrValue<string>,
+    maxIterations: PromiseOrValue<BigNumberish>,
     overrides?: Overrides & { from?: PromiseOrValue<string> }
   ): Promise<ContractTransaction>;
 
@@ -2284,15 +1807,11 @@ export interface MorphoAaveV3 extends BaseContract {
   ): Promise<ContractTransaction>;
 
   callStatic: {
-    ADDRESSES_PROVIDER(overrides?: CallOverrides): Promise<string>;
-
     DOMAIN_SEPARATOR(overrides?: CallOverrides): Promise<string>;
 
-    E_MODE_CATEGORY_ID(overrides?: CallOverrides): Promise<BigNumber>;
-
-    POOL(overrides?: CallOverrides): Promise<string>;
-
     acceptOwnership(overrides?: CallOverrides): Promise<void>;
+
+    addressesProvider(overrides?: CallOverrides): Promise<string>;
 
     approveManager(
       manager: PromiseOrValue<string>,
@@ -2355,9 +1874,11 @@ export interface MorphoAaveV3 extends BaseContract {
       overrides?: CallOverrides
     ): Promise<void>;
 
-    defaultMaxIterations(
+    defaultIterations(
       overrides?: CallOverrides
-    ): Promise<Types.MaxIterationsStructOutput>;
+    ): Promise<Types.IterationsStructOutput>;
+
+    eModeCategoryId(overrides?: CallOverrides): Promise<BigNumber>;
 
     getBucketsMask(
       underlying: PromiseOrValue<string>,
@@ -2379,8 +1900,10 @@ export interface MorphoAaveV3 extends BaseContract {
     ): Promise<void>;
 
     initialize(
-      newPositionsManager: PromiseOrValue<string>,
-      newDefaultMaxIterations: Types.MaxIterationsStruct,
+      addressesProvider: PromiseOrValue<string>,
+      eModeCategoryId: PromiseOrValue<BigNumberish>,
+      positionsManager: PromiseOrValue<string>,
+      defaultIterations: Types.IterationsStruct,
       overrides?: CallOverrides
     ): Promise<void>;
 
@@ -2401,10 +1924,7 @@ export interface MorphoAaveV3 extends BaseContract {
     ): Promise<[BigNumber, BigNumber]>;
 
     liquidityData(
-      underlying: PromiseOrValue<string>,
       user: PromiseOrValue<string>,
-      amountWithdrawn: PromiseOrValue<BigNumberish>,
-      amountBorrowed: PromiseOrValue<BigNumberish>,
       overrides?: CallOverrides
     ): Promise<Types.LiquidityDataStructOutput>;
 
@@ -2418,6 +1938,8 @@ export interface MorphoAaveV3 extends BaseContract {
     owner(overrides?: CallOverrides): Promise<string>;
 
     pendingOwner(overrides?: CallOverrides): Promise<string>;
+
+    pool(overrides?: CallOverrides): Promise<string>;
 
     positionsManager(overrides?: CallOverrides): Promise<string>;
 
@@ -2471,13 +1993,30 @@ export interface MorphoAaveV3 extends BaseContract {
       overrides?: CallOverrides
     ): Promise<BigNumber>;
 
-    setDefaultMaxIterations(
-      defaultMaxIterations: Types.MaxIterationsStruct,
+    setAssetIsCollateral(
+      underlying: PromiseOrValue<string>,
+      isCollateral: PromiseOrValue<boolean>,
+      overrides?: CallOverrides
+    ): Promise<void>;
+
+    setAssetIsCollateralOnPool(
+      underlying: PromiseOrValue<string>,
+      isCollateral: PromiseOrValue<boolean>,
+      overrides?: CallOverrides
+    ): Promise<void>;
+
+    setDefaultIterations(
+      defaultIterations: Types.IterationsStruct,
       overrides?: CallOverrides
     ): Promise<void>;
 
     setIsBorrowPaused(
       underlying: PromiseOrValue<string>,
+      isPaused: PromiseOrValue<boolean>,
+      overrides?: CallOverrides
+    ): Promise<void>;
+
+    setIsClaimRewardsPaused(
       isPaused: PromiseOrValue<boolean>,
       overrides?: CallOverrides
     ): Promise<void>;
@@ -2646,6 +2185,7 @@ export interface MorphoAaveV3 extends BaseContract {
       amount: PromiseOrValue<BigNumberish>,
       onBehalf: PromiseOrValue<string>,
       receiver: PromiseOrValue<string>,
+      maxIterations: PromiseOrValue<BigNumberish>,
       overrides?: CallOverrides
     ): Promise<BigNumber>;
 
@@ -2679,421 +2219,16 @@ export interface MorphoAaveV3 extends BaseContract {
       previousOwner?: PromiseOrValue<string> | null,
       newOwner?: PromiseOrValue<string> | null
     ): OwnershipTransferredEventFilter;
-
-    "BorrowPositionUpdated(address,address,uint256,uint256)"(
-      user?: PromiseOrValue<string> | null,
-      underlying?: PromiseOrValue<string> | null,
-      scaledOnPool?: null,
-      scaledInP2P?: null
-    ): BorrowPositionUpdatedEventFilter;
-    BorrowPositionUpdated(
-      user?: PromiseOrValue<string> | null,
-      underlying?: PromiseOrValue<string> | null,
-      scaledOnPool?: null,
-      scaledInP2P?: null
-    ): BorrowPositionUpdatedEventFilter;
-
-    "Borrowed(address,address,address,address,uint256,uint256,uint256)"(
-      caller?: null,
-      onBehalf?: PromiseOrValue<string> | null,
-      receiver?: PromiseOrValue<string> | null,
-      underlying?: PromiseOrValue<string> | null,
-      amount?: null,
-      scaledOnPool?: null,
-      scaledInP2P?: null
-    ): BorrowedEventFilter;
-    Borrowed(
-      caller?: null,
-      onBehalf?: PromiseOrValue<string> | null,
-      receiver?: PromiseOrValue<string> | null,
-      underlying?: PromiseOrValue<string> | null,
-      amount?: null,
-      scaledOnPool?: null,
-      scaledInP2P?: null
-    ): BorrowedEventFilter;
-
-    "CollateralSupplied(address,address,address,uint256,uint256)"(
-      from?: PromiseOrValue<string> | null,
-      onBehalf?: PromiseOrValue<string> | null,
-      underlying?: PromiseOrValue<string> | null,
-      amount?: null,
-      scaledBalance?: null
-    ): CollateralSuppliedEventFilter;
-    CollateralSupplied(
-      from?: PromiseOrValue<string> | null,
-      onBehalf?: PromiseOrValue<string> | null,
-      underlying?: PromiseOrValue<string> | null,
-      amount?: null,
-      scaledBalance?: null
-    ): CollateralSuppliedEventFilter;
-
-    "CollateralWithdrawn(address,address,address,address,uint256,uint256)"(
-      caller?: null,
-      onBehalf?: PromiseOrValue<string> | null,
-      receiver?: PromiseOrValue<string> | null,
-      underlying?: PromiseOrValue<string> | null,
-      amount?: null,
-      scaledBalance?: null
-    ): CollateralWithdrawnEventFilter;
-    CollateralWithdrawn(
-      caller?: null,
-      onBehalf?: PromiseOrValue<string> | null,
-      receiver?: PromiseOrValue<string> | null,
-      underlying?: PromiseOrValue<string> | null,
-      amount?: null,
-      scaledBalance?: null
-    ): CollateralWithdrawnEventFilter;
-
-    "DefaultMaxIterationsSet(uint64,uint64)"(
-      repay?: null,
-      withdraw?: null
-    ): DefaultMaxIterationsSetEventFilter;
-    DefaultMaxIterationsSet(
-      repay?: null,
-      withdraw?: null
-    ): DefaultMaxIterationsSetEventFilter;
-
-    "EModeSet(uint8)"(categoryId?: null): EModeSetEventFilter;
-    EModeSet(categoryId?: null): EModeSetEventFilter;
-
-    "IdleSupplyUpdated(address,uint256)"(
-      underlying?: PromiseOrValue<string> | null,
-      idleSupply?: null
-    ): IdleSupplyUpdatedEventFilter;
-    IdleSupplyUpdated(
-      underlying?: PromiseOrValue<string> | null,
-      idleSupply?: null
-    ): IdleSupplyUpdatedEventFilter;
-
-    "IndexesUpdated(address,uint256,uint256,uint256,uint256)"(
-      underlying?: PromiseOrValue<string> | null,
-      poolSupplyIndex?: null,
-      p2pSupplyIndex?: null,
-      poolBorrowIndex?: null,
-      p2pBorrowIndex?: null
-    ): IndexesUpdatedEventFilter;
-    IndexesUpdated(
-      underlying?: PromiseOrValue<string> | null,
-      poolSupplyIndex?: null,
-      p2pSupplyIndex?: null,
-      poolBorrowIndex?: null,
-      p2pBorrowIndex?: null
-    ): IndexesUpdatedEventFilter;
-
-    "IsBorrowPausedSet(address,bool)"(
-      underlying?: PromiseOrValue<string> | null,
-      isPaused?: null
-    ): IsBorrowPausedSetEventFilter;
-    IsBorrowPausedSet(
-      underlying?: PromiseOrValue<string> | null,
-      isPaused?: null
-    ): IsBorrowPausedSetEventFilter;
-
-    "IsDeprecatedSet(address,bool)"(
-      underlying?: PromiseOrValue<string> | null,
-      isDeprecated?: null
-    ): IsDeprecatedSetEventFilter;
-    IsDeprecatedSet(
-      underlying?: PromiseOrValue<string> | null,
-      isDeprecated?: null
-    ): IsDeprecatedSetEventFilter;
-
-    "IsLiquidateBorrowPausedSet(address,bool)"(
-      underlying?: PromiseOrValue<string> | null,
-      isPaused?: null
-    ): IsLiquidateBorrowPausedSetEventFilter;
-    IsLiquidateBorrowPausedSet(
-      underlying?: PromiseOrValue<string> | null,
-      isPaused?: null
-    ): IsLiquidateBorrowPausedSetEventFilter;
-
-    "IsLiquidateCollateralPausedSet(address,bool)"(
-      underlying?: PromiseOrValue<string> | null,
-      isPaused?: null
-    ): IsLiquidateCollateralPausedSetEventFilter;
-    IsLiquidateCollateralPausedSet(
-      underlying?: PromiseOrValue<string> | null,
-      isPaused?: null
-    ): IsLiquidateCollateralPausedSetEventFilter;
-
-    "IsP2PDisabledSet(address,bool)"(
-      underlying?: PromiseOrValue<string> | null,
-      isP2PDisabled?: null
-    ): IsP2PDisabledSetEventFilter;
-    IsP2PDisabledSet(
-      underlying?: PromiseOrValue<string> | null,
-      isP2PDisabled?: null
-    ): IsP2PDisabledSetEventFilter;
-
-    "IsRepayPausedSet(address,bool)"(
-      underlying?: PromiseOrValue<string> | null,
-      isPaused?: null
-    ): IsRepayPausedSetEventFilter;
-    IsRepayPausedSet(
-      underlying?: PromiseOrValue<string> | null,
-      isPaused?: null
-    ): IsRepayPausedSetEventFilter;
-
-    "IsSupplyCollateralPausedSet(address,bool)"(
-      underlying?: PromiseOrValue<string> | null,
-      isPaused?: null
-    ): IsSupplyCollateralPausedSetEventFilter;
-    IsSupplyCollateralPausedSet(
-      underlying?: PromiseOrValue<string> | null,
-      isPaused?: null
-    ): IsSupplyCollateralPausedSetEventFilter;
-
-    "IsSupplyPausedSet(address,bool)"(
-      underlying?: PromiseOrValue<string> | null,
-      isPaused?: null
-    ): IsSupplyPausedSetEventFilter;
-    IsSupplyPausedSet(
-      underlying?: PromiseOrValue<string> | null,
-      isPaused?: null
-    ): IsSupplyPausedSetEventFilter;
-
-    "IsWithdrawCollateralPausedSet(address,bool)"(
-      underlying?: PromiseOrValue<string> | null,
-      isPaused?: null
-    ): IsWithdrawCollateralPausedSetEventFilter;
-    IsWithdrawCollateralPausedSet(
-      underlying?: PromiseOrValue<string> | null,
-      isPaused?: null
-    ): IsWithdrawCollateralPausedSetEventFilter;
-
-    "IsWithdrawPausedSet(address,bool)"(
-      underlying?: PromiseOrValue<string> | null,
-      isPaused?: null
-    ): IsWithdrawPausedSetEventFilter;
-    IsWithdrawPausedSet(
-      underlying?: PromiseOrValue<string> | null,
-      isPaused?: null
-    ): IsWithdrawPausedSetEventFilter;
-
-    "Liquidated(address,address,address,uint256,address,uint256)"(
-      liquidator?: PromiseOrValue<string> | null,
-      borrower?: PromiseOrValue<string> | null,
-      underlyingBorrowed?: PromiseOrValue<string> | null,
-      amountLiquidated?: null,
-      underlyingCollateral?: null,
-      amountSeized?: null
-    ): LiquidatedEventFilter;
-    Liquidated(
-      liquidator?: PromiseOrValue<string> | null,
-      borrower?: PromiseOrValue<string> | null,
-      underlyingBorrowed?: PromiseOrValue<string> | null,
-      amountLiquidated?: null,
-      underlyingCollateral?: null,
-      amountSeized?: null
-    ): LiquidatedEventFilter;
-
-    "ManagerApproval(address,address,bool)"(
-      delegator?: PromiseOrValue<string> | null,
-      manager?: PromiseOrValue<string> | null,
-      isAllowed?: null
-    ): ManagerApprovalEventFilter;
-    ManagerApproval(
-      delegator?: PromiseOrValue<string> | null,
-      manager?: PromiseOrValue<string> | null,
-      isAllowed?: null
-    ): ManagerApprovalEventFilter;
-
-    "MarketCreated(address)"(
-      underlying?: PromiseOrValue<string> | null
-    ): MarketCreatedEventFilter;
-    MarketCreated(
-      underlying?: PromiseOrValue<string> | null
-    ): MarketCreatedEventFilter;
-
-    "P2PBorrowDeltaUpdated(address,uint256)"(
-      underlying?: PromiseOrValue<string> | null,
-      borrowDelta?: null
-    ): P2PBorrowDeltaUpdatedEventFilter;
-    P2PBorrowDeltaUpdated(
-      underlying?: PromiseOrValue<string> | null,
-      borrowDelta?: null
-    ): P2PBorrowDeltaUpdatedEventFilter;
-
-    "P2PDeltasIncreased(address,uint256)"(
-      underlying?: PromiseOrValue<string> | null,
-      amount?: null
-    ): P2PDeltasIncreasedEventFilter;
-    P2PDeltasIncreased(
-      underlying?: PromiseOrValue<string> | null,
-      amount?: null
-    ): P2PDeltasIncreasedEventFilter;
-
-    "P2PIndexCursorSet(address,uint16)"(
-      underlying?: PromiseOrValue<string> | null,
-      p2pIndexCursor?: null
-    ): P2PIndexCursorSetEventFilter;
-    P2PIndexCursorSet(
-      underlying?: PromiseOrValue<string> | null,
-      p2pIndexCursor?: null
-    ): P2PIndexCursorSetEventFilter;
-
-    "P2PSupplyDeltaUpdated(address,uint256)"(
-      underlying?: PromiseOrValue<string> | null,
-      supplyDelta?: null
-    ): P2PSupplyDeltaUpdatedEventFilter;
-    P2PSupplyDeltaUpdated(
-      underlying?: PromiseOrValue<string> | null,
-      supplyDelta?: null
-    ): P2PSupplyDeltaUpdatedEventFilter;
-
-    "P2PTotalsUpdated(address,uint256,uint256)"(
-      underlying?: PromiseOrValue<string> | null,
-      scaledTotalSupplyP2P?: null,
-      scaledTotalBorrowP2P?: null
-    ): P2PTotalsUpdatedEventFilter;
-    P2PTotalsUpdated(
-      underlying?: PromiseOrValue<string> | null,
-      scaledTotalSupplyP2P?: null,
-      scaledTotalBorrowP2P?: null
-    ): P2PTotalsUpdatedEventFilter;
-
-    "PositionsManagerSet(address)"(
-      positionsManager?: PromiseOrValue<string> | null
-    ): PositionsManagerSetEventFilter;
-    PositionsManagerSet(
-      positionsManager?: PromiseOrValue<string> | null
-    ): PositionsManagerSetEventFilter;
-
-    "Repaid(address,address,address,uint256,uint256,uint256)"(
-      repayer?: PromiseOrValue<string> | null,
-      onBehalf?: PromiseOrValue<string> | null,
-      underlying?: PromiseOrValue<string> | null,
-      amount?: null,
-      scaledOnPool?: null,
-      scaledInP2P?: null
-    ): RepaidEventFilter;
-    Repaid(
-      repayer?: PromiseOrValue<string> | null,
-      onBehalf?: PromiseOrValue<string> | null,
-      underlying?: PromiseOrValue<string> | null,
-      amount?: null,
-      scaledOnPool?: null,
-      scaledInP2P?: null
-    ): RepaidEventFilter;
-
-    "ReserveFactorSet(address,uint16)"(
-      underlying?: PromiseOrValue<string> | null,
-      reserveFactor?: null
-    ): ReserveFactorSetEventFilter;
-    ReserveFactorSet(
-      underlying?: PromiseOrValue<string> | null,
-      reserveFactor?: null
-    ): ReserveFactorSetEventFilter;
-
-    "ReserveFeeClaimed(address,uint256)"(
-      underlying?: PromiseOrValue<string> | null,
-      claimed?: null
-    ): ReserveFeeClaimedEventFilter;
-    ReserveFeeClaimed(
-      underlying?: PromiseOrValue<string> | null,
-      claimed?: null
-    ): ReserveFeeClaimedEventFilter;
-
-    "RewardsClaimed(address,address,address,uint256)"(
-      claimer?: PromiseOrValue<string> | null,
-      onBehalf?: PromiseOrValue<string> | null,
-      rewardToken?: PromiseOrValue<string> | null,
-      amountClaimed?: null
-    ): RewardsClaimedEventFilter;
-    RewardsClaimed(
-      claimer?: PromiseOrValue<string> | null,
-      onBehalf?: PromiseOrValue<string> | null,
-      rewardToken?: PromiseOrValue<string> | null,
-      amountClaimed?: null
-    ): RewardsClaimedEventFilter;
-
-    "RewardsManagerSet(address)"(
-      rewardsManager?: PromiseOrValue<string> | null
-    ): RewardsManagerSetEventFilter;
-    RewardsManagerSet(
-      rewardsManager?: PromiseOrValue<string> | null
-    ): RewardsManagerSetEventFilter;
-
-    "Supplied(address,address,address,uint256,uint256,uint256)"(
-      from?: PromiseOrValue<string> | null,
-      onBehalf?: PromiseOrValue<string> | null,
-      underlying?: PromiseOrValue<string> | null,
-      amount?: null,
-      scaledOnPool?: null,
-      scaledInP2P?: null
-    ): SuppliedEventFilter;
-    Supplied(
-      from?: PromiseOrValue<string> | null,
-      onBehalf?: PromiseOrValue<string> | null,
-      underlying?: PromiseOrValue<string> | null,
-      amount?: null,
-      scaledOnPool?: null,
-      scaledInP2P?: null
-    ): SuppliedEventFilter;
-
-    "SupplyPositionUpdated(address,address,uint256,uint256)"(
-      user?: PromiseOrValue<string> | null,
-      underlying?: PromiseOrValue<string> | null,
-      scaledOnPool?: null,
-      scaledInP2P?: null
-    ): SupplyPositionUpdatedEventFilter;
-    SupplyPositionUpdated(
-      user?: PromiseOrValue<string> | null,
-      underlying?: PromiseOrValue<string> | null,
-      scaledOnPool?: null,
-      scaledInP2P?: null
-    ): SupplyPositionUpdatedEventFilter;
-
-    "TreasuryVaultSet(address)"(
-      treasuryVault?: PromiseOrValue<string> | null
-    ): TreasuryVaultSetEventFilter;
-    TreasuryVaultSet(
-      treasuryVault?: PromiseOrValue<string> | null
-    ): TreasuryVaultSetEventFilter;
-
-    "UserNonceIncremented(address,address,uint256)"(
-      manager?: PromiseOrValue<string> | null,
-      signatory?: PromiseOrValue<string> | null,
-      usedNonce?: null
-    ): UserNonceIncrementedEventFilter;
-    UserNonceIncremented(
-      manager?: PromiseOrValue<string> | null,
-      signatory?: PromiseOrValue<string> | null,
-      usedNonce?: null
-    ): UserNonceIncrementedEventFilter;
-
-    "Withdrawn(address,address,address,address,uint256,uint256,uint256)"(
-      caller?: null,
-      onBehalf?: PromiseOrValue<string> | null,
-      receiver?: PromiseOrValue<string> | null,
-      underlying?: PromiseOrValue<string> | null,
-      amount?: null,
-      scaledOnPool?: null,
-      scaledInP2P?: null
-    ): WithdrawnEventFilter;
-    Withdrawn(
-      caller?: null,
-      onBehalf?: PromiseOrValue<string> | null,
-      receiver?: PromiseOrValue<string> | null,
-      underlying?: PromiseOrValue<string> | null,
-      amount?: null,
-      scaledOnPool?: null,
-      scaledInP2P?: null
-    ): WithdrawnEventFilter;
   };
 
   estimateGas: {
-    ADDRESSES_PROVIDER(overrides?: CallOverrides): Promise<BigNumber>;
-
     DOMAIN_SEPARATOR(overrides?: CallOverrides): Promise<BigNumber>;
-
-    E_MODE_CATEGORY_ID(overrides?: CallOverrides): Promise<BigNumber>;
-
-    POOL(overrides?: CallOverrides): Promise<BigNumber>;
 
     acceptOwnership(
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<BigNumber>;
+
+    addressesProvider(overrides?: CallOverrides): Promise<BigNumber>;
 
     approveManager(
       manager: PromiseOrValue<string>,
@@ -3151,7 +2286,9 @@ export interface MorphoAaveV3 extends BaseContract {
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<BigNumber>;
 
-    defaultMaxIterations(overrides?: CallOverrides): Promise<BigNumber>;
+    defaultIterations(overrides?: CallOverrides): Promise<BigNumber>;
+
+    eModeCategoryId(overrides?: CallOverrides): Promise<BigNumber>;
 
     getBucketsMask(
       underlying: PromiseOrValue<string>,
@@ -3173,8 +2310,10 @@ export interface MorphoAaveV3 extends BaseContract {
     ): Promise<BigNumber>;
 
     initialize(
-      newPositionsManager: PromiseOrValue<string>,
-      newDefaultMaxIterations: Types.MaxIterationsStruct,
+      addressesProvider: PromiseOrValue<string>,
+      eModeCategoryId: PromiseOrValue<BigNumberish>,
+      positionsManager: PromiseOrValue<string>,
+      defaultIterations: Types.IterationsStruct,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<BigNumber>;
 
@@ -3195,10 +2334,7 @@ export interface MorphoAaveV3 extends BaseContract {
     ): Promise<BigNumber>;
 
     liquidityData(
-      underlying: PromiseOrValue<string>,
       user: PromiseOrValue<string>,
-      amountWithdrawn: PromiseOrValue<BigNumberish>,
-      amountBorrowed: PromiseOrValue<BigNumberish>,
       overrides?: CallOverrides
     ): Promise<BigNumber>;
 
@@ -3212,6 +2348,8 @@ export interface MorphoAaveV3 extends BaseContract {
     owner(overrides?: CallOverrides): Promise<BigNumber>;
 
     pendingOwner(overrides?: CallOverrides): Promise<BigNumber>;
+
+    pool(overrides?: CallOverrides): Promise<BigNumber>;
 
     positionsManager(overrides?: CallOverrides): Promise<BigNumber>;
 
@@ -3267,13 +2405,30 @@ export interface MorphoAaveV3 extends BaseContract {
       overrides?: CallOverrides
     ): Promise<BigNumber>;
 
-    setDefaultMaxIterations(
-      defaultMaxIterations: Types.MaxIterationsStruct,
+    setAssetIsCollateral(
+      underlying: PromiseOrValue<string>,
+      isCollateral: PromiseOrValue<boolean>,
+      overrides?: Overrides & { from?: PromiseOrValue<string> }
+    ): Promise<BigNumber>;
+
+    setAssetIsCollateralOnPool(
+      underlying: PromiseOrValue<string>,
+      isCollateral: PromiseOrValue<boolean>,
+      overrides?: Overrides & { from?: PromiseOrValue<string> }
+    ): Promise<BigNumber>;
+
+    setDefaultIterations(
+      defaultIterations: Types.IterationsStruct,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<BigNumber>;
 
     setIsBorrowPaused(
       underlying: PromiseOrValue<string>,
+      isPaused: PromiseOrValue<boolean>,
+      overrides?: Overrides & { from?: PromiseOrValue<string> }
+    ): Promise<BigNumber>;
+
+    setIsClaimRewardsPaused(
       isPaused: PromiseOrValue<boolean>,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<BigNumber>;
@@ -3442,6 +2597,7 @@ export interface MorphoAaveV3 extends BaseContract {
       amount: PromiseOrValue<BigNumberish>,
       onBehalf: PromiseOrValue<string>,
       receiver: PromiseOrValue<string>,
+      maxIterations: PromiseOrValue<BigNumberish>,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<BigNumber>;
 
@@ -3455,21 +2611,13 @@ export interface MorphoAaveV3 extends BaseContract {
   };
 
   populateTransaction: {
-    ADDRESSES_PROVIDER(
-      overrides?: CallOverrides
-    ): Promise<PopulatedTransaction>;
-
     DOMAIN_SEPARATOR(overrides?: CallOverrides): Promise<PopulatedTransaction>;
-
-    E_MODE_CATEGORY_ID(
-      overrides?: CallOverrides
-    ): Promise<PopulatedTransaction>;
-
-    POOL(overrides?: CallOverrides): Promise<PopulatedTransaction>;
 
     acceptOwnership(
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<PopulatedTransaction>;
+
+    addressesProvider(overrides?: CallOverrides): Promise<PopulatedTransaction>;
 
     approveManager(
       manager: PromiseOrValue<string>,
@@ -3527,9 +2675,9 @@ export interface MorphoAaveV3 extends BaseContract {
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<PopulatedTransaction>;
 
-    defaultMaxIterations(
-      overrides?: CallOverrides
-    ): Promise<PopulatedTransaction>;
+    defaultIterations(overrides?: CallOverrides): Promise<PopulatedTransaction>;
+
+    eModeCategoryId(overrides?: CallOverrides): Promise<PopulatedTransaction>;
 
     getBucketsMask(
       underlying: PromiseOrValue<string>,
@@ -3551,8 +2699,10 @@ export interface MorphoAaveV3 extends BaseContract {
     ): Promise<PopulatedTransaction>;
 
     initialize(
-      newPositionsManager: PromiseOrValue<string>,
-      newDefaultMaxIterations: Types.MaxIterationsStruct,
+      addressesProvider: PromiseOrValue<string>,
+      eModeCategoryId: PromiseOrValue<BigNumberish>,
+      positionsManager: PromiseOrValue<string>,
+      defaultIterations: Types.IterationsStruct,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<PopulatedTransaction>;
 
@@ -3575,10 +2725,7 @@ export interface MorphoAaveV3 extends BaseContract {
     ): Promise<PopulatedTransaction>;
 
     liquidityData(
-      underlying: PromiseOrValue<string>,
       user: PromiseOrValue<string>,
-      amountWithdrawn: PromiseOrValue<BigNumberish>,
-      amountBorrowed: PromiseOrValue<BigNumberish>,
       overrides?: CallOverrides
     ): Promise<PopulatedTransaction>;
 
@@ -3592,6 +2739,8 @@ export interface MorphoAaveV3 extends BaseContract {
     owner(overrides?: CallOverrides): Promise<PopulatedTransaction>;
 
     pendingOwner(overrides?: CallOverrides): Promise<PopulatedTransaction>;
+
+    pool(overrides?: CallOverrides): Promise<PopulatedTransaction>;
 
     positionsManager(overrides?: CallOverrides): Promise<PopulatedTransaction>;
 
@@ -3647,13 +2796,30 @@ export interface MorphoAaveV3 extends BaseContract {
       overrides?: CallOverrides
     ): Promise<PopulatedTransaction>;
 
-    setDefaultMaxIterations(
-      defaultMaxIterations: Types.MaxIterationsStruct,
+    setAssetIsCollateral(
+      underlying: PromiseOrValue<string>,
+      isCollateral: PromiseOrValue<boolean>,
+      overrides?: Overrides & { from?: PromiseOrValue<string> }
+    ): Promise<PopulatedTransaction>;
+
+    setAssetIsCollateralOnPool(
+      underlying: PromiseOrValue<string>,
+      isCollateral: PromiseOrValue<boolean>,
+      overrides?: Overrides & { from?: PromiseOrValue<string> }
+    ): Promise<PopulatedTransaction>;
+
+    setDefaultIterations(
+      defaultIterations: Types.IterationsStruct,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<PopulatedTransaction>;
 
     setIsBorrowPaused(
       underlying: PromiseOrValue<string>,
+      isPaused: PromiseOrValue<boolean>,
+      overrides?: Overrides & { from?: PromiseOrValue<string> }
+    ): Promise<PopulatedTransaction>;
+
+    setIsClaimRewardsPaused(
       isPaused: PromiseOrValue<boolean>,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<PopulatedTransaction>;
@@ -3822,6 +2988,7 @@ export interface MorphoAaveV3 extends BaseContract {
       amount: PromiseOrValue<BigNumberish>,
       onBehalf: PromiseOrValue<string>,
       receiver: PromiseOrValue<string>,
+      maxIterations: PromiseOrValue<BigNumberish>,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<PopulatedTransaction>;
 

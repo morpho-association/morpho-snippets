@@ -55,7 +55,7 @@ export const getTotalSupply = async (provider: providers.BaseProvider) => {
             supply: { p2pIndex, poolIndex },
           },
           deltas: {
-            supply: { scaledDeltaPool, scaledTotalP2P },
+            supply: { scaledDelta, scaledP2PTotal },
           },
           idleSupply,
         },
@@ -73,8 +73,8 @@ export const getTotalSupply = async (provider: providers.BaseProvider) => {
       ]);
 
       const p2pSupplyAmount = zeroFloorSub(
-        WadRayMath.rayMul(scaledTotalP2P, p2pIndex),
-        WadRayMath.rayMul(scaledDeltaPool, poolIndex)
+        WadRayMath.rayMul(scaledP2PTotal, p2pIndex),
+        WadRayMath.rayMul(scaledDelta, poolIndex)
       );
 
       return {
@@ -128,7 +128,7 @@ export const getTotalBorrow = async (provider: providers.BaseProvider) => {
             borrow: { p2pIndex, poolIndex },
           },
           deltas: {
-            borrow: { scaledDeltaPool, scaledTotalP2P },
+            borrow: { scaledDelta, scaledP2PTotal },
           },
         },
         underlyingPrice,
@@ -145,8 +145,8 @@ export const getTotalBorrow = async (provider: providers.BaseProvider) => {
       ]);
 
       const p2pBorrowAmount = zeroFloorSub(
-        WadRayMath.rayMul(scaledTotalP2P, p2pIndex),
-        WadRayMath.rayMul(scaledDeltaPool, poolIndex)
+        WadRayMath.rayMul(scaledP2PTotal, p2pIndex),
+        WadRayMath.rayMul(scaledDelta, poolIndex)
       );
 
       return {
@@ -196,7 +196,7 @@ export const getTotalMarketSupply = async (
       supply: { p2pIndex, poolIndex },
     },
     deltas: {
-      supply: { scaledDeltaPool, scaledTotalP2P },
+      supply: { scaledDelta, scaledP2PTotal },
     },
     idleSupply,
   } = await morphoAaveV3.market(underlying);
@@ -206,8 +206,8 @@ export const getTotalMarketSupply = async (
   const poolSupplyAmount = await aToken.balanceOf(morphoAaveV3.address);
 
   const p2pSupplyAmount = zeroFloorSub(
-    WadRayMath.rayMul(scaledTotalP2P, p2pIndex),
-    WadRayMath.rayMul(scaledDeltaPool, poolIndex)
+    WadRayMath.rayMul(scaledP2PTotal, p2pIndex),
+    WadRayMath.rayMul(scaledDelta, poolIndex)
   );
   return {
     p2pSupplyAmount,
@@ -235,7 +235,7 @@ export const getTotalMarketBorrow = async (
       borrow: { p2pIndex, poolIndex },
     },
     deltas: {
-      borrow: { scaledDeltaPool, scaledTotalP2P },
+      borrow: { scaledDelta, scaledP2PTotal },
     },
   } = await morphoAaveV3.market(underlying);
 
@@ -244,8 +244,8 @@ export const getTotalMarketBorrow = async (
   const poolBorrowAmount = await aToken.balanceOf(morphoAaveV3.address);
 
   const p2pBorrowAmount = zeroFloorSub(
-    WadRayMath.rayMul(scaledTotalP2P, p2pIndex),
-    WadRayMath.rayMul(scaledDeltaPool, poolIndex)
+    WadRayMath.rayMul(scaledP2PTotal, p2pIndex),
+    WadRayMath.rayMul(scaledDelta, poolIndex)
   );
 
   return {
@@ -496,7 +496,7 @@ export const getSupplyRatesPerYear = async (
     {
       idleSupply,
       deltas: {
-        supply: { scaledDeltaPool, scaledTotalP2P },
+        supply: { scaledDelta, scaledP2PTotal },
       },
       indexes: {
         supply: { p2pIndex, poolIndex },
@@ -507,7 +507,7 @@ export const getSupplyRatesPerYear = async (
   ] = await Promise.all([pool.getReserveData(underlying), morphoAaveV3.market(underlying)]);
 
   const totalP2PSupplied: BigNumber = WadRayMath.rayMul(
-    scaledTotalP2P,
+    scaledP2PTotal,
     p2pIndex // TODO: use updated index
   );
   const propIdleSupply = WadRayMath.rayDiv(idleSupply, totalP2PSupplied);
@@ -518,8 +518,8 @@ export const getSupplyRatesPerYear = async (
     poolIndex,
     p2pIndex,
     proportionIdle: propIdleSupply,
-    p2pDelta: scaledDeltaPool,
-    p2pAmount: scaledTotalP2P,
+    p2pDelta: scaledDelta,
+    p2pAmount: scaledP2PTotal,
     p2pIndexCursor: BigNumber.from(p2pIndexCursor),
     reserveFactor: BigNumber.from(reserveFactor),
   });
@@ -548,7 +548,7 @@ export const getBorrowRatesPerYear = async (
     { currentLiquidityRate, currentVariableBorrowRate },
     {
       deltas: {
-        borrow: { scaledDeltaPool, scaledTotalP2P },
+        borrow: { scaledDelta, scaledP2PTotal },
       },
       indexes: {
         borrow: { p2pIndex, poolIndex },
@@ -564,8 +564,8 @@ export const getBorrowRatesPerYear = async (
     poolIndex,
     p2pIndex,
     proportionIdle: constants.Zero,
-    p2pDelta: scaledDeltaPool,
-    p2pAmount: scaledTotalP2P,
+    p2pDelta: scaledDelta,
+    p2pAmount: scaledP2PTotal,
     p2pIndexCursor: BigNumber.from(p2pIndexCursor),
     reserveFactor: BigNumber.from(reserveFactor),
   });

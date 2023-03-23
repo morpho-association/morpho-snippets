@@ -5,7 +5,7 @@ import { PercentMath } from "@morpho-labs/ethers-utils/lib/maths";
 import { maxBN } from "@morpho-labs/ethers-utils/lib/utils";
 import { AavePriceOracle__factory, AaveV3Pool__factory } from "@morpho-labs/morpho-ethers-contract";
 
-import { MorphoAaveV3__factory } from "./contracts/MorphoAaveV3__factory";
+import { MorphoAaveV3__factory } from "../../contracts";
 
 export const getContracts = (provider: providers.BaseProvider) => ({
   morphoAaveV3: MorphoAaveV3__factory.connect("", provider),

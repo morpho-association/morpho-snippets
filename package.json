@@ -8,7 +8,8 @@
   "license": "MIT",
   "scripts": {
     "build": "tsc --build ./tsconfig.build.json",
-    "lint": "eslint ./src --fix"
+    "lint": "eslint ./src --fix",
+    "types:generate": "typechain --target=ethers-v5 --out-dir contracts \"./abis/**/*.json\""
   },
   "repository": {
     "type": "git",
@@ -25,6 +26,7 @@
     "@commitlint/cli": "^17.5.0",
     "@commitlint/config-conventional": "^17.4.4",
     "@trivago/prettier-plugin-sort-imports": "^4.1.1",
+    "@typechain/ethers-v5": "^10.2.0",
     "@typescript-eslint/eslint-plugin": "^5.56.0",
     "@typescript-eslint/parser": "^5.56.0",
     "concurrently": "^7.6.0",
@@ -38,6 +40,7 @@
     "husky": "^8.0.3",
     "lint-staged": "^13.2.0",
     "matchstick-as": "^0.5.2",
-    "prettier": "^2.8.6"
+    "prettier": "^2.8.6",
+    "typechain": "^8.1.1"
   }
 }
