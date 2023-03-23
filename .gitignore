@@ -1,6 +1,4 @@
 .env
-abis
+
 *.log
-*.lock
 node_modules
-./morpho-aave-v3/abis

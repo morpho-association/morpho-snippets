@@ -1,16 +1,36 @@
 {
-  "name": "morpho-aave-v3",
+  "name": "@morpho-labs/morpho-snippets",
   "version": "1.0.0",
-  "description": "",
+  "description": "Pieces of code that can be used independently to interact with the Morpho protocol",
   "main": "index.js",
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/morpho-labs/snippets.git"
+  },
   "dependencies": {
     "@ethersproject/providers": "^5.7.2",
-    "@morpho-labs/ethers-utils": "^1.1.1",
-    "@types/node": "^18.15.5",
     "dotenv": "^16.0.3",
-    "ethers": "^5.7.2"
+    "ethers": "^6.2.0"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^17.5.0",
+    "@commitlint/config-conventional": "^17.4.4",
+    "@trivago/prettier-plugin-sort-imports": "^4.1.1",
+    "@typescript-eslint/eslint-plugin": "^5.56.0",
+    "@typescript-eslint/parser": "^5.56.0",
+    "concurrently": "^7.6.0",
+    "eslint": "^8.36.0",
+    "eslint-config-next": "^13.2.4",
+    "eslint-config-prettier": "^8.8.0",
+    "eslint-plugin-import": "^2.27.5",
+    "eslint-plugin-prettier": "^4.2.1",
+    "eslint-plugin-unused-imports": "^2.0.0",
+    "husky": "^8.0.3",
+    "lint-staged": "^13.2.0",
+    "matchstick-as": "^0.5.2",
+    "prettier": "^2.8.6"
   }
 }
