@@ -1,0 +1,40 @@
+name: Build and Lint
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - src/**
+      - test/**
+      - jest.config.js
+      - package.json
+      - yarn.lock
+  pull_request:
+    paths:
+      - src/**
+      - test/**
+      - jest.config.js
+      - package.json
+      - yarn.lock
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: yarn
+
+      - name: Install dependencies
+        run: yarn --frozen-lockfile
+
+      - name: Lint code
+        run: yarn lint
+
+      - name: Compile code
+        run: yarn build
