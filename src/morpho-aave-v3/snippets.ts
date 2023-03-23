@@ -1,5 +1,4 @@
-import { ethers, BigNumber } from "ethers";
-import { JsonRpcBatchProvider } from "@ethersproject/providers";
+import {BigNumber, ethers} from "ethers";
 import * as dotenv from "dotenv";
 import * as MorphoAbi from "../abis/MorphoAbi.json";
 import * as OracleAbi from "../abis/OracleAbi.json";
@@ -8,8 +7,6 @@ import * as ATokenAbi from "../abis/aTokenAbi.json";
 import { WadRayMath } from "@morpho-labs/ethers-utils/lib/maths";
 dotenv.config();
 
-const provider = new JsonRpcBatchProvider(process.env.RPC_URL);
-const signer = new ethers.Wallet(process.env.PRIVATE_KEY || " ", provider);
 
 /// CONTRACTS
 const morpho = new ethers.Contract(
@@ -31,11 +28,12 @@ const pool = new ethers.Contract(
   signer
 );
 
+
 /// INTERFACES
 interface LiquidityData {
-  borrowable: ethers.BigNumber;
-  maxDebt: ethers.BigNumber;
-  debt: ethers.BigNumber;
+  borrowable: BigNumber;
+  maxDebt: BigNumber;
+  debt: BigNumber;
 }
 
 interface MarketSideDelta {
