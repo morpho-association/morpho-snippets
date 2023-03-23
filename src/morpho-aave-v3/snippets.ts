@@ -279,15 +279,8 @@ export const getCurrentCollateralBalanceInOf = async (
   provider: providers.BaseProvider
 ) => {
   const { morphoAaveV3 } = getContracts(provider);
-
-  const [
-    {
-      supply: { poolIndex },
-    },
-    scaledCollateral,
-  ] = await morphoAaveV3.collateralBalance(underlying, user)
-
-  return WadRayMath.rayMul(scaledCollateral, poolIndex);
+  const collateral : BigNumber = await morphoAaveV3.collateralBalance(underlying, user)
+  return collateral;
 };
 
 /**
