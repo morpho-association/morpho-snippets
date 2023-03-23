@@ -9,7 +9,7 @@
   "scripts": {
     "build": "tsc --build ./tsconfig.build.json",
     "lint": "eslint ./src --fix",
-    "types:generate": "typechain --target=ethers-v5 --out-dir contracts \"./abis/**/*.json\""
+    "types:generate": "typechain --target=ethers-v5 --out-dir src/contracts \\\"./abis/**/*.json\\\""
   },
   "repository": {
     "type": "git",
