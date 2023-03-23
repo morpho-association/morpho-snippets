@@ -1,0 +1,46 @@
+{
+  "name": "@morpho-labs/morpho-snippets",
+  "version": "1.0.0",
+  "description": "Pieces of code that can be used independently to interact with the Morpho protocol",
+  "main": "index.js",
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc --build ./tsconfig.build.json",
+    "lint": "eslint ./src",
+    "types:generate": "typechain --target=ethers-v5 --out-dir src/contracts \\\"./abis/**/*.json\\\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/morpho-labs/snippets.git"
+  },
+  "dependencies": {
+    "@ethersproject/providers": "^5.7.2",
+    "@morpho-labs/ethers-utils": "^1.1.1",
+    "@morpho-labs/morpho-ethers-contract": "^1.13.0",
+    "dotenv": "^16.0.3",
+    "ethers": "^5.7.2"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^17.5.0",
+    "@commitlint/config-conventional": "^17.4.4",
+    "@trivago/prettier-plugin-sort-imports": "^4.1.1",
+    "@typechain/ethers-v5": "^10.2.0",
+    "@typescript-eslint/eslint-plugin": "^5.56.0",
+    "@typescript-eslint/parser": "^5.56.0",
+    "concurrently": "^7.6.0",
+    "eslint": "^8.36.0",
+    "eslint-config-next": "^13.2.4",
+    "eslint-config-prettier": "^8.8.0",
+    "eslint-plugin-import": "^2.27.5",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-prettier": "^4.2.1",
+    "eslint-plugin-unused-imports": "^2.0.0",
+    "husky": "^8.0.3",
+    "lint-staged": "^13.2.0",
+    "matchstick-as": "^0.5.2",
+    "prettier": "^2.8.6",
+    "typechain": "^8.1.1"
+  }
+}
