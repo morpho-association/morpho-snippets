@@ -1,0 +1,16 @@
+{
+  "name": "morpho-aave-v3",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@ethersproject/providers": "^5.7.2",
+    "@morpho-labs/ethers-utils": "^1.1.1",
+    "@types/node": "^18.15.5",
+    "dotenv": "^16.0.3",
+    "ethers": "^5.7.2"
+  }
+}
