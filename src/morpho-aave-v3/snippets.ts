@@ -1,9 +1,6 @@
 import {BigNumber, ethers} from "ethers";
 import * as dotenv from "dotenv";
 import * as MorphoAbi from "../abis/MorphoAbi.json";
-import * as OracleAbi from "../abis/OracleAbi.json";
-import * as PoolAbi from "../abis/PoolAbi.json";
-import * as ATokenAbi from "../abis/aTokenAbi.json";
 import { WadRayMath } from "@morpho-labs/ethers-utils/lib/maths";
 dotenv.config();
 
