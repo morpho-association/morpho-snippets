@@ -252,61 +252,109 @@ export const getTotalMarketBorrow = async (
 };
 
 /**
- * This function retrieves the supply liquidity matchable of a user given and returns the result.
+ * This function retrieves the supply balance of one given user in one given market.
  *
  * @param underlying The market to retrieve the supplied liquidity.
  * @param user The user address.
- * @returns The P2P amount, the pool amount and the total supply amount of this token.
- */
-async function getCurrentSupplyBalanceInOf(
-  underlying: string,
-  user: string
-): Promise<[BigNumber, BigNumber, BigNumber]> {
-  const indexes: { supply: { p2pIndex: BigNumber; poolIndex: BigNumber } } =
-    await morpho.updatedIndexes(underlying);
-  const balanceInP2P: BigNumber = await morpho.scaledP2PSupplyBalance(underlying, user);
-  const balanceOnPool: BigNumber = await morpho.scaledPoolSupplyBalance(underlying, user);
-  const totalBalance: BigNumber = balanceInP2P
-    .mul(indexes.supply.p2pIndex)
-    .add(balanceOnPool.mul(indexes.supply.poolIndex));
-  return [balanceInP2P, balanceOnPool, totalBalance];
-}
-
-/**
- * This function retrieves the not-matchable collateral liquidity of a user given and returns the result.
+ * @param provider A provider instance
  *
- * @param underlying The market to retrieve the supplied liquidity.
- * @param user The user address.
- * @returns The collateral amount deposited of this token.
+ * @returns The matched peer-to-peer amount, the pool amount and the total supply amount.
  */
-async function getCurrentCollateralBalanceInOf(
+const getCurrentSupplyBalanceInOf = async (
   underlying: string,
-  user: string
-): Promise<BigNumber> {
-  const collateral: BigNumber = await morpho.collateralBalance(underlying, user);
-  return collateral;
-}
+  user: string,
+  provider: providers.BaseProvider
+) => {
+  const { morphoAaveV3 } = getContracts(provider);
+
+  const [
+    {
+      supply: { p2pIndex, poolIndex },
+    },
+    scaledP2PSupplyBalance,
+    scaledPoolSupplyBalance,
+  ] = await Promise.all([
+    morphoAaveV3.updatedIndexes(underlying),
+    morphoAaveV3.scaledP2PSupplyBalance(underlying, user),
+    morphoAaveV3.scaledPoolSupplyBalance(underlying, user),
+  ]);
+
+  const balanceInP2P = WadRayMath.rayMul(scaledP2PSupplyBalance, p2pIndex);
+  const balanceOnPool = WadRayMath.rayMul(scaledPoolSupplyBalance, poolIndex);
+
+  return {
+    balanceInP2P,
+    balanceOnPool,
+    totalBalance: balanceInP2P.add(balanceOnPool),
+  };
+};
 
 /**
- * This function retrieves the borrow liquidity of a user given and returns the result.
+ * This function retrieves the collateral balance of one given user in one given market.
+ *
+ * @param underlying The market to retrieve the collateral amount.
+ * @param user The user address.
+ * @param provider A provider instance
+ *
+ * @returns The total collateral of the user.
+ */
+export const getCurrentCollateralBalanceInOf = async (
+  underlying: string,
+  user: string,
+  provider: providers.BaseProvider
+) => {
+  const { morphoAaveV3 } = getContracts(provider);
+
+  const [
+    {
+      supply: { poolIndex },
+    },
+    scaledCollateral,
+  ] = await Promise.all([
+    morphoAaveV3.updatedIndexes(underlying),
+    morphoAaveV3.collateralBalance(underlying, user),
+  ]);
+
+  return WadRayMath.rayMul(scaledCollateral, poolIndex);
+};
+
+/**
+ * This function retrieves the borrow balance of one given user in one given market.
  *
  * @param underlying The market to retrieve the borrowed liquidity.
  * @param user The user address.
- * @returns The P2P amount, the pool amount and the total borrow amount of this token.
+ * @param provider A provider instance
+ *
+ * @returns The matched peer-to-peer amount, the pool amount and the total borrow amount.
  */
-async function getCurrentBorrowBalanceInOf(
+export const getCurrentBorrowBalanceInOf = async (
   underlying: string,
-  user: string
-): Promise<[BigNumber, BigNumber, BigNumber]> {
-  const indexes: { borrow: { p2pIndex: BigNumber; poolIndex: BigNumber } } =
-    await morpho.updatedIndexes(underlying);
-  const balanceInP2P: BigNumber = await morpho.scaledP2PBorrowBalance(underlying, user);
-  const balanceOnPool: BigNumber = await morpho.scaledPoolBorrowBalance(underlying, user);
-  const totalBalance: BigNumber = balanceInP2P
-    .mul(indexes.borrow.p2pIndex)
-    .add(balanceOnPool.mul(indexes.borrow.poolIndex));
-  return [balanceInP2P, balanceOnPool, totalBalance];
-}
+  user: string,
+  provider: providers.BaseProvider
+) => {
+  const { morphoAaveV3 } = getContracts(provider);
+
+  const [
+    {
+      borrow: { p2pIndex, poolIndex },
+    },
+    scaledP2PSupplyBalance,
+    scaledPoolSupplyBalance,
+  ] = await Promise.all([
+    morphoAaveV3.updatedIndexes(underlying),
+    morphoAaveV3.scaledP2PBorrowBalance(underlying, user),
+    morphoAaveV3.scaledPoolBorrowBalance(underlying, user),
+  ]);
+
+  const balanceInP2P = WadRayMath.rayMul(scaledP2PSupplyBalance, p2pIndex);
+  const balanceOnPool = WadRayMath.rayMul(scaledPoolSupplyBalance, poolIndex);
+
+  return {
+    balanceInP2P,
+    balanceOnPool,
+    totalBalance: balanceInP2P.add(balanceOnPool),
+  };
+};
 
 /**
  * This function retrieves the supply APY of a user on a given market and returns the result.
