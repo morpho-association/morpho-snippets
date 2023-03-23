@@ -1,7 +1,11 @@
-import { BigNumber, ethers } from "ethers";
+import { BigNumber, ethers, providers } from "ethers";
 import { constants } from "ethers/lib/index";
 
 import { WadRayMath } from "@morpho-labs/ethers-utils/lib/maths";
+import { pow10 } from "@morpho-labs/ethers-utils/lib/utils";
+import { AToken__factory, VariableDebtToken__factory } from "@morpho-labs/morpho-ethers-contract";
+
+import { getContracts, zeroFloorSub } from "./utils";
 
 /**
  * This function is computing an average rate
@@ -30,166 +34,222 @@ export const getWeightedRate = async (
   };
 };
 
-/**
- * This function Executes a weighted average (x * (1 - p) + y * p), rounded up and returns the result.
- *
- * @param x The first value, with a weight of 1 - percentage.
- * @param y The second value, with a weight of percentage.
- * @param percentage The weight of y, and complement of the weight of x.
- * @returns The result of the weighted average.
- */
-async function getWeightedAvg(
-  x: BigNumber,
-  y: BigNumber,
-  percentage: BigNumber
-): Promise<BigNumber> {
-  const PERCENTAGE_FACTOR = BigNumber.from(1e4);
-  const HALF_PERCENTAGE_FACTOR = BigNumber.from(0.5e4);
-  const MAX_UINT256_MINUS_HALF_PERCENTAGE_FACTOR = BigNumber.from(2 ** 256 - 1).sub(
-    HALF_PERCENTAGE_FACTOR
-  );
-  let z: BigNumber = PERCENTAGE_FACTOR.sub(percentage);
-
-  if (
-    percentage.gt(PERCENTAGE_FACTOR) ||
-    (percentage.gt(0) && y.gt(MAX_UINT256_MINUS_HALF_PERCENTAGE_FACTOR.div(percentage))) ||
-    (PERCENTAGE_FACTOR.gt(percentage) &&
-      x.gt(MAX_UINT256_MINUS_HALF_PERCENTAGE_FACTOR.sub(y.mul(percentage)).div(z)))
-  ) {
-    throw new Error("Underflow or overflow detected");
-  }
-
-  z = x.mul(z).add(y.mul(percentage)).add(HALF_PERCENTAGE_FACTOR).div(PERCENTAGE_FACTOR);
-
-  return z;
-}
-
 /// FUNCTIONS
 
 /**
- * This function retrieve the total supply over the Morpho Markets and returns the result.
+ * This function retrieves the total supply over the Morpho Aave v3
+ * markets for both collateral and supply only.
  *
- * @returns The P2P amount, the pool amount, the idle supply amount and the total supply amount.
+ * @param provider A provider instance
  */
-async function getTotalSupply(): Promise<[BigNumber, BigNumber, BigNumber, BigNumber]> {
-  const markets = await morpho.marketsCreated();
-  const nbMarkets = markets.length;
-  const p2pSupplyAmount = BigNumber.from(0);
-  const poolSupplyAmount = BigNumber.from(0);
-  const idleSupply = BigNumber.from(0);
-  let totalSupplyAmount = BigNumber.from(0);
-  for (let i = 0; i < nbMarkets; ) {
-    const _poolToken = markets[i];
-    const aToken = new ethers.Contract(_poolToken.toString(), ATokenAbi, signer);
-    const market: Market = await morpho.market(_poolToken);
-    const underlyingPrice = await oracle.getAssetPrice(market.underlying);
-    const [, , , reserveDecimals, ,] = await pool
-      .getConfiguration(market.underlying)
-      .getParamsMemory();
-    const tokenUnit = 10 ** reserveDecimals;
-    p2pSupplyAmount.add(
-      zeroFloorSub(
-        WadRayMath.rayMul(market.deltas.supply.scaledP2PTotal, market.indexes.supply.p2pIndex),
-        WadRayMath.rayMul(market.deltas.supply.scaledDelta, market.indexes.supply.poolIndex)
-      )
-        .mul(underlyingPrice)
-        .div(tokenUnit)
-    );
-    poolSupplyAmount.add(aToken.balanceOf(morpho.address));
-    ++i;
-    idleSupply.add(market.idleSupply);
-  }
-  totalSupplyAmount = p2pSupplyAmount.add(poolSupplyAmount).add(idleSupply);
-  return [p2pSupplyAmount, poolSupplyAmount, idleSupply, totalSupplyAmount];
-}
+const getTotalSupply = async (provider: providers.BaseProvider) => {
+  const { oracle, morphoAaveV3 } = getContracts(provider);
+  const markets = await morphoAaveV3.marketsCreated();
+  const marketsData = await Promise.all(
+    markets.map(async (underlying) => {
+      const [
+        {
+          aToken: aTokenAddress,
+          indexes: {
+            supply: { p2pIndex, poolIndex },
+          },
+          deltas: {
+            supply: { scaledDeltaPool, scaledTotalP2P },
+          },
+          idleSupply,
+        },
+        underlyingPrice,
+      ] = await Promise.all([
+        morphoAaveV3.market(underlying),
+        oracle.getAssetPrice(underlying), // TODO: handle if emode
+      ]);
+
+      const aToken = AToken__factory.connect(aTokenAddress, provider);
+
+      const [decimals, poolSupplyAmount] = await Promise.all([
+        aToken.decimals(),
+        aToken.balanceOf(morphoAaveV3.address),
+      ]);
+
+      const p2pSupplyAmount = zeroFloorSub(
+        WadRayMath.rayMul(scaledTotalP2P, p2pIndex),
+        WadRayMath.rayMul(scaledDeltaPool, poolIndex)
+      );
+
+      return {
+        p2pSupplyAmount,
+        poolSupplyAmount,
+        idleSupply,
+        underlyingPrice,
+        decimals,
+      };
+    })
+  );
+
+  const amounts = marketsData.reduce(
+    (acc, { p2pSupplyAmount, poolSupplyAmount, idleSupply, underlyingPrice, decimals }) => {
+      const toUsd = (amount: BigNumber) => amount.mul(underlyingPrice).div(pow10(decimals));
+      return {
+        p2pSupplyAmount: acc.p2pSupplyAmount.add(toUsd(p2pSupplyAmount)),
+        poolSupplyAmount: acc.poolSupplyAmount.add(toUsd(poolSupplyAmount)),
+        idleSupply: acc.idleSupply.add(toUsd(idleSupply)),
+      };
+    },
+    {
+      p2pSupplyAmount: constants.Zero,
+      poolSupplyAmount: constants.Zero,
+      idleSupply: constants.Zero,
+    }
+  );
+
+  return {
+    ...amounts,
+    totalSupplyAmount: amounts.poolSupplyAmount.add(amounts.p2pSupplyAmount),
+    markets: marketsData,
+  };
+};
 
 /**
- * This function retrieve the total borrow over the Morpho Markets and returns the result.
+ * This function retrieves the total borrow over the Morpho Aave v3
  *
- * @returns The P2P amount, the pool amount and the total borrow amount.
+ * @param provider A provider instance
  */
-async function getTotalBorrow(): Promise<[BigNumber, BigNumber, BigNumber]> {
-  const markets = await morpho.marketsCreated();
-  const nbMarkets = markets.length;
-  const p2pBorrowAmount = BigNumber.from(0);
-  const poolBorrowAmount = BigNumber.from(0);
-  let totalBorrowAmount = BigNumber.from(0);
-  for (let i = 0; i < nbMarkets; ) {
-    const _poolToken = markets[i];
-    const aToken = new ethers.Contract(_poolToken.toString(), ATokenAbi, signer);
-    const market: Market = await morpho.market(_poolToken);
-    const underlyingPrice = await oracle.getAssetPrice(market.underlying);
-    const [, , , reserveDecimals, ,] = await pool
-      .getConfiguration(market.underlying)
-      .getParamsMemory();
-    const tokenUnit = 10 ** reserveDecimals;
-    p2pBorrowAmount.add(
-      zeroFloorSub(
-        WadRayMath.rayMul(market.deltas.borrow.scaledP2PTotal, market.indexes.borrow.p2pIndex),
-        WadRayMath.rayMul(market.deltas.borrow.scaledDelta, market.indexes.borrow.poolIndex)
-      )
-        .mul(underlyingPrice)
-        .div(tokenUnit)
-    );
-    poolBorrowAmount.add(aToken.balanceOf(morpho.address));
-    ++i;
-  }
-  totalBorrowAmount = p2pBorrowAmount.add(poolBorrowAmount);
-  return [p2pBorrowAmount, poolBorrowAmount, totalBorrowAmount];
-}
+export const getTotalBorrow = async (provider: providers.BaseProvider) => {
+  const { oracle, morphoAaveV3 } = getContracts(provider);
+  const markets = await morphoAaveV3.marketsCreated();
+
+  const marketsData = await Promise.all(
+    markets.map(async (underlying) => {
+      const [
+        {
+          variableDebtToken,
+          indexes: {
+            borrow: { p2pIndex, poolIndex },
+          },
+          deltas: {
+            borrow: { scaledDeltaPool, scaledTotalP2P },
+          },
+        },
+        underlyingPrice,
+      ] = await Promise.all([
+        morphoAaveV3.market(underlying),
+        oracle.getAssetPrice(underlying), // TODO: handle if emode
+      ]);
+
+      const debtToken = VariableDebtToken__factory.connect(variableDebtToken, provider);
+
+      const [decimals, poolBorrowAmount] = await Promise.all([
+        debtToken.decimals(),
+        debtToken.balanceOf(morphoAaveV3.address),
+      ]);
+
+      const p2pBorrowAmount = zeroFloorSub(
+        WadRayMath.rayMul(scaledTotalP2P, p2pIndex),
+        WadRayMath.rayMul(scaledDeltaPool, poolIndex)
+      );
+
+      return {
+        p2pBorrowAmount,
+        poolBorrowAmount,
+        underlyingPrice,
+        decimals,
+      };
+    })
+  );
+
+  const amounts = marketsData.reduce(
+    (acc, { p2pBorrowAmount, poolBorrowAmount, underlyingPrice, decimals }) => {
+      const toUsd = (amount: BigNumber) => amount.mul(underlyingPrice).div(pow10(decimals));
+      return {
+        p2pBorrowAmount: acc.p2pBorrowAmount.add(toUsd(p2pBorrowAmount)),
+        poolBorrowAmount: acc.poolBorrowAmount.add(toUsd(poolBorrowAmount)),
+      };
+    },
+    {
+      p2pBorrowAmount: constants.Zero,
+      poolBorrowAmount: constants.Zero,
+    }
+  );
+
+  return {
+    ...amounts,
+    totalSupplyAmount: amounts.poolBorrowAmount.add(amounts.p2pBorrowAmount),
+    markets: marketsData,
+  };
+};
 
 /**
- * This function get the total supply over one of the Morpho Markets and returns the result.
+ * This function gets the total supply for one given market.
  *
- * @param poolToken The string of the address of the aToken
- * @returns The P2P amount, the pool amount, the idle supply amount and the total supply amount of this aToken.
+ * @param underlying The address of the underlying token
+ * @param provider A provider instance
  */
-async function getTotalMarketSupply(
-  poolToken: string
-): Promise<[BigNumber, BigNumber, BigNumber, BigNumber]> {
-  const aToken = new ethers.Contract(poolToken, ATokenAbi, signer);
-  const market: Market = await morpho.market(poolToken);
-  const underlyingPrice = await oracle.getAssetPrice(market.underlying);
-  const [, , , reserveDecimals, ,] = await pool
-    .getConfiguration(market.underlying)
-    .getParamsMemory();
-  const tokenUnit = 10 ** reserveDecimals;
-  const p2pSupplyAmount: BigNumber = zeroFloorSub(
-    WadRayMath.rayMul(market.deltas.supply.scaledP2PTotal, market.indexes.supply.p2pIndex),
-    WadRayMath.rayMul(market.deltas.supply.scaledDelta, market.indexes.supply.poolIndex)
-  )
-    .mul(underlyingPrice)
-    .div(tokenUnit);
-  const poolSupplyAmount: BigNumber = aToken.balanceOf(morpho.address);
-  const idleSupply: BigNumber = market.idleSupply;
-  const totalSupplyAmount: BigNumber = p2pSupplyAmount.add(poolSupplyAmount).add(idleSupply);
-  return [p2pSupplyAmount, poolSupplyAmount, idleSupply, totalSupplyAmount];
-}
+const getTotalMarketSupply = async (underlying: string, provider: providers.BaseProvider) => {
+  const { morphoAaveV3 } = getContracts(provider);
+  const {
+    aToken: aTokenAddress,
+    indexes: {
+      supply: { p2pIndex, poolIndex },
+    },
+    deltas: {
+      supply: { scaledDeltaPool, scaledTotalP2P },
+    },
+    idleSupply,
+  } = await morphoAaveV3.market(underlying);
+
+  const aToken = AToken__factory.connect(aTokenAddress, provider);
+
+  const poolSupplyAmount = await aToken.balanceOf(morphoAaveV3.address);
+
+  const p2pSupplyAmount = zeroFloorSub(
+    WadRayMath.rayMul(scaledTotalP2P, p2pIndex),
+    WadRayMath.rayMul(scaledDeltaPool, poolIndex)
+  );
+  return {
+    p2pSupplyAmount,
+    poolSupplyAmount,
+    idleSupply,
+    totalSupplyAmount: p2pSupplyAmount.add(poolSupplyAmount).add(idleSupply),
+  };
+};
 
 /**
- * This function get the total borrow over one of the Morpho Markets and returns the result.
+ * This function gets the total borrow for one given market.
  *
- * @param poolToken The string of the address of the aToken
- * @returns The P2P amount, the pool amount and the total borrow amount of this aToken.
+ * @param underlying The address of the underlying token
+ * @param provider A provider instance
  */
-async function getTotalMarketBorrow(poolToken: string): Promise<[BigNumber, BigNumber, BigNumber]> {
-  const aToken = new ethers.Contract(poolToken, ATokenAbi, signer);
-  const market: Market = await morpho.market(poolToken);
-  const underlyingPrice = await oracle.getAssetPrice(market.underlying);
-  const [, , , reserveDecimals, ,] = await pool
-    .getConfiguration(market.underlying)
-    .getParamsMemory();
-  const tokenUnit = 10 ** reserveDecimals;
-  const p2pBorrowAmount: BigNumber = zeroFloorSub(
-    WadRayMath.rayMul(market.deltas.borrow.scaledP2PTotal, market.indexes.borrow.p2pIndex),
-    WadRayMath.rayMul(market.deltas.borrow.scaledDelta, market.indexes.borrow.poolIndex)
-  )
-    .mul(underlyingPrice)
-    .div(tokenUnit);
-  const poolBorrowAmount: BigNumber = aToken.balanceOf(morpho.address);
-  const totalBorrowAmount: BigNumber = p2pBorrowAmount.add(poolBorrowAmount);
-  return [p2pBorrowAmount, poolBorrowAmount, totalBorrowAmount]; // it returns BigNumber here. We may want to transform it :)
-}
+export const getTotalMarketBorrow = async (
+  underlying: string,
+  provider: providers.BaseProvider
+) => {
+  const { morphoAaveV3 } = getContracts(provider);
+
+  const {
+    variableDebtToken,
+    indexes: {
+      borrow: { p2pIndex, poolIndex },
+    },
+    deltas: {
+      borrow: { scaledDeltaPool, scaledTotalP2P },
+    },
+  } = await morphoAaveV3.market(underlying);
+
+  const aToken = VariableDebtToken__factory.connect(variableDebtToken, provider);
+
+  const poolBorrowAmount = await aToken.balanceOf(morphoAaveV3.address);
+
+  const p2pBorrowAmount = zeroFloorSub(
+    WadRayMath.rayMul(scaledTotalP2P, p2pIndex),
+    WadRayMath.rayMul(scaledDeltaPool, poolIndex)
+  );
+
+  return {
+    p2pBorrowAmount,
+    poolBorrowAmount,
+    totalBorrowAmount: p2pBorrowAmount.add(poolBorrowAmount),
+  };
+};
 
 /**
  * This function retrieves the supply liquidity matchable of a user given and returns the result.

@@ -1,5 +1,7 @@
 import { BigNumber, providers } from "ethers";
+import { constants } from "ethers/lib/index";
 
+import { PercentMath } from "@morpho-labs/ethers-utils/lib/maths";
 import { AavePriceOracle__factory, AaveV3Pool__factory } from "@morpho-labs/morpho-ethers-contract";
 
 import { MorphoAaveV3__factory } from "./contracts/MorphoAaveV3__factory";
@@ -21,3 +23,37 @@ export const getContracts = (provider: providers.BaseProvider) => ({
 function zeroFloorSub(a: BigNumber, b: BigNumber): BigNumber {
   return b.gt(a) ? BigNumber.from("0") : a.sub(b);
 }
+
+/**
+ * This function Executes a weighted average (x * (1 - p) + y * p), rounded up and returns the result.
+ * TODO: move it to ethers-utils
+ *
+ * @param x The first value, with a weight of 1 - percentage.
+ * @param y The second value, with a weight of percentage.
+ * @param percentage The weight of y, and complement of the weight of x.
+ * @returns The result of the weighted average.
+ */
+export const getWeightedAvg = (x: BigNumber, y: BigNumber, percentage: BigNumber) => {
+  const MAX_UINT256_MINUS_HALF_PERCENTAGE_FACTOR = constants.MaxUint256.sub(
+    PercentMath.HALF_PERCENT
+  );
+  let z: BigNumber = PercentMath.BASE_PERCENT.sub(percentage);
+
+  if (
+    percentage.gt(PercentMath.BASE_PERCENT) ||
+    (percentage.gt(0) && y.gt(MAX_UINT256_MINUS_HALF_PERCENTAGE_FACTOR.div(percentage))) ||
+    (PercentMath.BASE_PERCENT.gt(percentage) &&
+      x.gt(MAX_UINT256_MINUS_HALF_PERCENTAGE_FACTOR.sub(y.mul(percentage)).div(z)))
+  ) {
+    throw new Error("Underflow or overflow detected");
+  }
+
+  z = x.mul(z).add(y.mul(percentage)).add(PercentMath.HALF_PERCENT).div(PercentMath.BASE_PERCENT);
+
+  return z;
+};
+
+
+
+// TODO: move it to ethers-utils
+export const zeroFloorSub = (a: BigNumber, b: BigNumber) =>  b.gt(a) ? BigNumber.from("0") : a.sub(b);
