@@ -1,11 +1,12 @@
-import { BigNumber, ethers, providers } from "ethers";
+import { BigNumber, providers } from "ethers";
 import { constants } from "ethers/lib/index";
 
 import { WadRayMath } from "@morpho-labs/ethers-utils/lib/maths";
 import { pow10 } from "@morpho-labs/ethers-utils/lib/utils";
 import { AToken__factory, VariableDebtToken__factory } from "@morpho-labs/morpho-ethers-contract";
 
-import { getContracts, zeroFloorSub } from "./utils";
+import { P2PRateComputeParams } from "./types";
+import { getContracts, getWeightedAvg, zeroFloorSub } from "./utils";
 
 /**
  * This function is computing an average rate
@@ -42,7 +43,7 @@ export const getWeightedRate = async (
  *
  * @param provider A provider instance
  */
-const getTotalSupply = async (provider: providers.BaseProvider) => {
+export const getTotalSupply = async (provider: providers.BaseProvider) => {
   const { oracle, morphoAaveV3 } = getContracts(provider);
   const markets = await morphoAaveV3.marketsCreated();
   const marketsData = await Promise.all(
@@ -184,7 +185,10 @@ export const getTotalBorrow = async (provider: providers.BaseProvider) => {
  * @param underlying The address of the underlying token
  * @param provider A provider instance
  */
-const getTotalMarketSupply = async (underlying: string, provider: providers.BaseProvider) => {
+export const getTotalMarketSupply = async (
+  underlying: string,
+  provider: providers.BaseProvider
+) => {
   const { morphoAaveV3 } = getContracts(provider);
   const {
     aToken: aTokenAddress,
@@ -260,7 +264,7 @@ export const getTotalMarketBorrow = async (
  *
  * @returns The matched peer-to-peer amount, the pool amount and the total supply amount.
  */
-const getCurrentSupplyBalanceInOf = async (
+export const getCurrentSupplyBalanceInOf = async (
   underlying: string,
   user: string,
   provider: providers.BaseProvider
@@ -357,48 +361,67 @@ export const getCurrentBorrowBalanceInOf = async (
 };
 
 /**
- * This function retrieves the supply APY of a user on a given market and returns the result.
+ * This function retrieves the supply APY of a user on a given market.
  *
  * @param underlying The market to retrieve the supply APY.
  * @param user The user address.
+ * @param provider A provider instance
+ *
  * @returns The experienced rate and the total balance of the deposited liquidity on this market.
  */
-async function getCurrentUserSupplyRatePerYear(underlying: string, user: string) {
-  const [balanceInP2P, balanceOnPool] = await getCurrentSupplyBalanceInOf(underlying, user);
-  const balanceIdle = await getCurrentCollateralBalanceInOf(underlying, user);
-  const poolAmount: BigNumber = balanceIdle.add(balanceOnPool);
-  const [p2pSupplyRate, poolSupplyRate] = await getSupplyRatesPerYear(underlying);
-  return await getWeightedRate(p2pSupplyRate, poolSupplyRate, balanceInP2P, poolAmount);
-}
+export const getCurrentUserSupplyRatePerYear = async (
+  underlying: string,
+  user: string,
+  provider: providers.BaseProvider
+) => {
+  const [{ balanceInP2P, balanceOnPool }, balanceIdle, { p2pSupplyRate, poolSupplyRate }] =
+    await Promise.all([
+      getCurrentSupplyBalanceInOf(underlying, user, provider),
+      getCurrentCollateralBalanceInOf(underlying, user, provider),
+      getSupplyRatesPerYear(underlying, provider),
+    ]);
+
+  const poolAmount = balanceIdle.add(balanceOnPool);
+
+  return getWeightedRate(p2pSupplyRate, poolSupplyRate, balanceInP2P, poolAmount);
+};
 
 /**
  * This function retrieves the borrow APY of a user on a given market and returns the result.
  *
  * @param underlying The market to retrieve the borrow APY.
  * @param user The user address.
+ * @param provider A provider instance
+ *
  * @returns The experienced rate and the total balance of the borrowed liquidity on this market.
  */
-async function getCurrentUserBorrowRatePerYear(
+export const getCurrentUserBorrowRatePerYear = async (
   underlying: string,
-  user: string
-): Promise<[BigNumber, BigNumber]> {
-  const [balanceInP2P, balanceOnPool] = await getCurrentBorrowBalanceInOf(underlying, user);
-  const [p2pSupplyRate, poolSupplyRate] = await getBorrowRatesPerYear(underlying);
-  return await getWeightedRate(p2pSupplyRate, poolSupplyRate, balanceInP2P, balanceOnPool);
-}
+  user: string,
+  provider: providers.BaseProvider
+) => {
+  const [{ balanceOnPool, balanceInP2P }, { p2pBorrowRate, poolBorrowRate }] = await Promise.all([
+    getCurrentBorrowBalanceInOf(underlying, user, provider),
+    getBorrowRatesPerYear(underlying, provider),
+  ]);
+
+  return getWeightedRate(p2pBorrowRate, poolBorrowRate, balanceInP2P, balanceOnPool);
+};
 
 /**
  * This function compute the P2P supply rate and returns the result.
  *
  * @param params The parameters inheriting of the P2PRateComputeParams interface allowing the computation.
- * @returns The p2p supply rate.
+ * @returns The p2p supply rate per year in _RAY_ units.
  */
-async function getP2PSupplyRate(params: P2PRateComputeParams): Promise<BigNumber> {
+export const getP2PSupplyRate = (params: P2PRateComputeParams) => {
+  // TODO: to fix with the proportion idle
+
   let p2pSupplyRate: BigNumber;
   if (params.poolSupplyRatePerYear.gt(params.poolBorrowRatePerYear)) {
     p2pSupplyRate = params.poolBorrowRatePerYear;
   } else {
-    const p2pRate = await getWeightedAvg(
+    const p2pRate = getWeightedAvg(
       params.poolSupplyRatePerYear,
       params.poolBorrowRatePerYear,
       params.p2pIndexCursor
@@ -418,20 +441,21 @@ async function getP2PSupplyRate(params: P2PRateComputeParams): Promise<BigNumber
       .add(params.poolSupplyRatePerYear.mul(shareOfTheDelta).div(WadRayMath.RAY));
   }
   return p2pSupplyRate;
-}
+};
 
 /**
  * This function compute the P2P borrow rate and returns the result.
  *
  * @param params The parameters inheriting of the P2PRateComputeParams interface allowing the computation.
- * @returns The p2p borrow rate.
+ *
+ * @returns The p2p borrow rate per year un _RAY_ units.
  */
-async function getP2PBorrowRate(params: P2PRateComputeParams): Promise<BigNumber> {
+export const getP2PBorrowRate = (params: P2PRateComputeParams) => {
   let p2pBorrowRate: BigNumber;
   if (params.poolSupplyRatePerYear.gt(params.poolBorrowRatePerYear)) {
     p2pBorrowRate = params.poolBorrowRatePerYear;
   } else {
-    const p2pRate = await getWeightedAvg(
+    const p2pRate = getWeightedAvg(
       params.poolSupplyRatePerYear,
       params.poolBorrowRatePerYear,
       params.p2pIndexCursor
@@ -451,79 +475,117 @@ async function getP2PBorrowRate(params: P2PRateComputeParams): Promise<BigNumber
       .add(params.poolBorrowRatePerYear.mul(shareOfTheDelta).div(WadRayMath.RAY));
   }
   return p2pBorrowRate;
-}
+};
 
 /**
  * This function compute the supply rate on a specific asset and returns the result.
  *
  * @param underlying The market to retrieve the supply APY.
- * @returns The P2P supply rate and the pool supply rate.
+ * @param provider A provider instance
+ *
+ * @returns The P2P supply rate per year and the pool supply rate per year in _RAY_ units.
  */
-async function getSupplyRatesPerYear(underlying): Promise<[BigNumber, BigNumber]> {
-  const reserve = await pool.getReserveData(underlying);
-  const market = await morpho.market(underlying);
+export const getSupplyRatesPerYear = async (
+  underlying: string,
+  provider: providers.BaseProvider
+) => {
+  const { morphoAaveV3, pool } = getContracts(provider);
 
-  const idleSupply: BigNumber = market.idleSupply;
+  const [
+    { currentLiquidityRate, currentVariableBorrowRate },
+    {
+      idleSupply,
+      deltas: {
+        supply: { scaledDeltaPool, scaledTotalP2P },
+      },
+      indexes: {
+        supply: { p2pIndex, poolIndex },
+      },
+      reserveFactor,
+      p2pIndexCursor,
+    },
+  ] = await Promise.all([pool.getReserveData(underlying), morphoAaveV3.market(underlying)]);
+
   const totalP2PSupplied: BigNumber = WadRayMath.rayMul(
-    market.deltas.supply.scaledP2PTotal,
-    market.indexes.supply.p2pIndex
+    scaledTotalP2P,
+    p2pIndex // TODO: use updated index
   );
   const propIdleSupply = WadRayMath.rayDiv(idleSupply, totalP2PSupplied);
 
-  const params: P2PRateComputeParams = {
-    poolSupplyRatePerYear: reserve.currentLiquidityRate,
-    poolBorrowRatePerYear: reserve.currentVariableBorrowRate,
-    poolIndex: market.indexes.supply.poolIndex,
-    p2pIndex: market.indexes.supply.p2pIndex,
+  const p2pSupplyRate = await getP2PSupplyRate({
+    poolSupplyRatePerYear: currentLiquidityRate,
+    poolBorrowRatePerYear: currentVariableBorrowRate,
+    poolIndex,
+    p2pIndex,
     proportionIdle: propIdleSupply,
-    p2pDelta: market.deltas.supply.scaledDelta,
-    p2pAmount: market.deltas.supply.scaledP2PTotal,
-    p2pIndexCursor: market.p2pIndexCursor,
-    reserveFactor: market.reserveFactor,
-  };
+    p2pDelta: scaledDeltaPool,
+    p2pAmount: scaledTotalP2P,
+    p2pIndexCursor: BigNumber.from(p2pIndexCursor),
+    reserveFactor: BigNumber.from(reserveFactor),
+  });
 
-  const P2PSupplyRate = await getP2PSupplyRate(params);
-  return [P2PSupplyRate, params.poolSupplyRatePerYear];
-}
+  return {
+    p2pSupplyRate,
+    poolSupplyRate: currentLiquidityRate,
+  };
+};
 
 /**
  * This function compute the borrow rate on a specific asset and returns the result.
  *
  * @param underlying The market to retrieve the borrow APY.
- * @returns The P2P borrow rate and the pool borrow rate.
+ * @param provider A provider instance
+ *
+ * @returns The P2P borrow rate per year and the pool borrow rate per year in _RAY_ units.
  */
-async function getBorrowRatesPerYear(underlying): Promise<[BigNumber, BigNumber]> {
-  const reserve = await pool.getReserveData(underlying);
-  const market = await morpho.market(underlying);
-  const totalP2PBorrowed: BigNumber = WadRayMath.rayMul(
-    market.deltas.borrow.scaledP2PTotal,
-    market.indexes.borrow.p2pIndex
-  );
+export const getBorrowRatesPerYear = async (
+  underlying: string,
+  provider: providers.BaseProvider
+) => {
+  const { morphoAaveV3, pool } = getContracts(provider);
 
-  const params: P2PRateComputeParams = {
-    poolSupplyRatePerYear: reserve.currentLiquidityRate,
-    poolBorrowRatePerYear: reserve.currentVariableBorrowRate,
-    poolIndex: market.indexes.borrow.poolIndex,
-    p2pIndex: market.indexes.borrow.p2pIndex,
-    proportionIdle: BigNumber.from(0),
-    p2pDelta: market.deltas.borrow.scaledDelta,
-    p2pAmount: market.deltas.borrow.scaledP2PTotal,
-    p2pIndexCursor: market.p2pIndexCursor,
-    reserveFactor: market.reserveFactor,
+  const [
+    { currentLiquidityRate, currentVariableBorrowRate },
+    {
+      deltas: {
+        borrow: { scaledDeltaPool, scaledTotalP2P },
+      },
+      indexes: {
+        borrow: { p2pIndex, poolIndex },
+      },
+      reserveFactor,
+      p2pIndexCursor,
+    },
+  ] = await Promise.all([pool.getReserveData(underlying), morphoAaveV3.market(underlying)]);
+
+  const p2pBorrowRate = await getP2PBorrowRate({
+    poolSupplyRatePerYear: currentLiquidityRate,
+    poolBorrowRatePerYear: currentVariableBorrowRate,
+    poolIndex,
+    p2pIndex,
+    proportionIdle: constants.Zero,
+    p2pDelta: scaledDeltaPool,
+    p2pAmount: scaledTotalP2P,
+    p2pIndexCursor: BigNumber.from(p2pIndexCursor),
+    reserveFactor: BigNumber.from(reserveFactor),
+  });
+  return {
+    p2pBorrowRate,
+    poolBorrowRate: currentVariableBorrowRate,
   };
-
-  const P2PBorrowRate = await getP2PBorrowRate(params);
-  return [P2PBorrowRate, params.poolBorrowRatePerYear];
-}
+};
 
 /**
  * This function compute the health factor on a specific user and returns the result.
  *
  * @param user The user address.
- * @returns The health factor.
+ * @param provider A provider instance
+ *
+ * @returns The health factor in _WAD_ units.
  */
-async function getUserHealthFactor(user: string): Promise<BigNumber> {
-  const liquidityData: LiquidityData = await morpho.liquidityData(user);
-  const healthFactor = WadRayMath.rayDiv(liquidityData.maxDebt, liquidityData.debt);
-  return healthFactor;
-}
+export const getUserHealthFactor = async (user: string, provider: providers.BaseProvider) => {
+  const { morphoAaveV3 } = getContracts(provider);
+  const { debt, maxDebt } = await morphoAaveV3.liquidityData(user);
+
+  return WadRayMath.wadDiv(maxDebt, debt);
+};
