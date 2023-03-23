@@ -1,8 +1,8 @@
 import { BigNumber, providers } from "ethers";
 import { constants } from "ethers/lib/index";
 
-import { WadRayMath } from "@morpho-labs/ethers-utils/lib/maths";
-import { pow10 } from "@morpho-labs/ethers-utils/lib/utils";
+import { PercentMath, WadRayMath } from "@morpho-labs/ethers-utils/lib/maths";
+import { minBN, pow10 } from "@morpho-labs/ethers-utils/lib/utils";
 import { AToken__factory, VariableDebtToken__factory } from "@morpho-labs/morpho-ethers-contract";
 
 import { P2PRateComputeParams } from "./types";
@@ -414,32 +414,46 @@ export const getCurrentUserBorrowRatePerYear = async (
  * @param params The parameters inheriting of the P2PRateComputeParams interface allowing the computation.
  * @returns The p2p supply rate per year in _RAY_ units.
  */
-export const getP2PSupplyRate = (params: P2PRateComputeParams) => {
-  // TODO: to fix with the proportion idle
+export const getP2PSupplyRate = ({
+  poolSupplyRatePerYear,
+  poolBorrowRatePerYear,
+  p2pIndexCursor,
+  p2pIndex,
+  poolIndex,
+  proportionIdle,
+  reserveFactor,
+  p2pDelta,
+  p2pAmount,
+}: P2PRateComputeParams) => {
+  let p2pSupplyRate;
 
-  let p2pSupplyRate: BigNumber;
-  if (params.poolSupplyRatePerYear.gt(params.poolBorrowRatePerYear)) {
-    p2pSupplyRate = params.poolBorrowRatePerYear;
-  } else {
-    const p2pRate = getWeightedAvg(
-      params.poolSupplyRatePerYear,
-      params.poolBorrowRatePerYear,
-      params.p2pIndexCursor
-    );
+  if (poolSupplyRatePerYear.gt(poolBorrowRatePerYear)) p2pSupplyRate = poolBorrowRatePerYear;
+  else {
+    const p2pRate = getWeightedAvg(poolSupplyRatePerYear, poolBorrowRatePerYear, p2pIndexCursor);
 
     p2pSupplyRate = p2pRate.sub(
-      p2pRate.sub(params.poolSupplyRatePerYear).mul(params.reserveFactor).div(WadRayMath.RAY)
+      PercentMath.percentMul(p2pRate.sub(poolBorrowRatePerYear), reserveFactor)
     );
   }
-  if (params.p2pDelta.gt(0) && params.p2pAmount.gt(0)) {
-    const a = params.p2pDelta.mul(params.poolIndex).div(params.p2pAmount.mul(params.p2pIndex));
-    const b = WadRayMath.RAY;
-    const shareOfTheDelta = a.gt(b) ? b : a;
-    p2pSupplyRate = p2pSupplyRate
-      .mul(WadRayMath.RAY.sub(shareOfTheDelta).sub(params.proportionIdle))
-      .div(WadRayMath.RAY)
-      .add(params.poolSupplyRatePerYear.mul(shareOfTheDelta).div(WadRayMath.RAY));
+
+  if (p2pDelta.gt(0) && p2pAmount.gt(0)) {
+    const proportionDelta = minBN(
+      WadRayMath.rayDiv(
+        // TODO: use of indexDivUp
+        WadRayMath.rayMul(p2pDelta, poolIndex),
+        WadRayMath.rayMul(p2pAmount, p2pIndex)
+      ),
+      WadRayMath.RAY.sub(proportionIdle) // To avoid proportionDelta + proportionIdle > 1 with rounding errors.
+    );
+
+    p2pSupplyRate = WadRayMath.rayMul(
+      p2pSupplyRate,
+      WadRayMath.RAY.sub(proportionDelta).sub(proportionIdle)
+    )
+      .add(WadRayMath.rayMul(poolSupplyRatePerYear, proportionDelta))
+      .add(proportionIdle);
   }
+
   return p2pSupplyRate;
 };
 
