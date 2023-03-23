@@ -8,9 +8,9 @@ import { AavePriceOracle__factory, AaveV3Pool__factory } from "@morpho-labs/morp
 import { MorphoAaveV3__factory } from "../contracts";
 
 export const getContracts = (provider: providers.BaseProvider) => ({
-  morphoAaveV3: MorphoAaveV3__factory.connect("", provider),
+  morphoAaveV3: MorphoAaveV3__factory.connect("0x123123", provider),
   oracle: AavePriceOracle__factory.connect("0xA50ba011c48153De246E5192C8f9258A2ba79Ca9", provider),
-  pool: AaveV3Pool__factory.connect("", provider),
+  pool: AaveV3Pool__factory.connect("0x123123", provider),
 });
 
 /**
@@ -41,6 +41,35 @@ export const getWeightedAvg = (x: BigNumber, y: BigNumber, percentage: BigNumber
 
   return z;
 };
+
+
+/**
+ * This function is computing an average rate
+ * and returns the weighted rate and the total balance.
+ *
+ * @param p2pRate The peer-to-peer rate per year, in _RAY_ units
+ * @param poolRate The pool rate per year, in _RAY_ units
+ * @param balanceInP2P The underlying balance matched peer-to-peer
+ * @param balanceOnPool The underlying balance on the pool
+ */
+export const getWeightedRate = async (
+  p2pRate: BigNumber,
+  poolRate: BigNumber,
+  balanceInP2P: BigNumber,
+  balanceOnPool: BigNumber
+) => {
+  const totalBalance: BigNumber = balanceInP2P.add(balanceOnPool);
+  if (totalBalance.isZero())
+    return {
+      weightedRate: constants.Zero,
+      totalBalance,
+    };
+  return {
+    weightedRate: p2pRate.mul(balanceInP2P).add(poolRate.mul(balanceOnPool)).div(totalBalance),
+    totalBalance,
+  };
+};
+
 
 /**
  * TODO: move it to ethers-utils
