@@ -58,7 +58,7 @@ export const getWeightedRate = async (
   balanceInP2P: BigNumber,
   balanceOnPool: BigNumber
 ) => {
-  const totalBalance: BigNumber = balanceInP2P.add(balanceOnPool);
+  const totalBalance = balanceInP2P.add(balanceOnPool);
   if (totalBalance.isZero())
     return {
       weightedRate: constants.Zero,
