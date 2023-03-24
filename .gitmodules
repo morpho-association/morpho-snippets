@@ -14,3 +14,6 @@
 [submodule "aave-v3-core"]
 	path = aave-v3-core
 	url = https://github.com/aave/aave-v3-core.git
+[submodule "forge-std"]
+	path = forge-std
+	url = https://github.com/foundry-rs/forge-std.git
