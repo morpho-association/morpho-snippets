@@ -1,0 +1,7 @@
+[submodule "morpho-utils"]
+	path = lib/morpho-utils
+	url = git@github.com:morpho-dao/morpho-utils.git
+[submodule "morpho-aave-v3"]
+	path = morpho-aave-v3
+	url = https://github.com/morpho-dao/morpho-aave-v3.git
+	branch = dev
