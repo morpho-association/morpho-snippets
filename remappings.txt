@@ -1,0 +1,12 @@
+@forge-std/=lib/forge-std/src/
+@ds-test/=lib/forge-std/lib/ds-test/src/
+
+
+@morpho-utils/=lib/morpho-utils/src/
+@morpho-data-structures/=lib/morpho-data-structures/src/
+
+
+@aave-v3-core/=lib/aave-v3-core/contracts/
+@morpho-aave-v3/=lib/morpho-aave-v3/src
+@solmate/=lib/solmate/src/
+solmate/=lib/permit2/lib/solmate/
