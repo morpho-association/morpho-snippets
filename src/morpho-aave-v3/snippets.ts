@@ -6,36 +6,7 @@ import { minBN, pow10 } from "@morpho-labs/ethers-utils/lib/utils";
 import { AToken__factory, VariableDebtToken__factory } from "@morpho-labs/morpho-ethers-contract";
 
 import { P2PRateComputeParams } from "./types";
-import { getContracts, getWeightedAvg, zeroFloorSub } from "./utils";
-
-/**
- * This function is computing an average rate
- * and returns the weighted rate and the total balance.
- *
- * @param p2pRate The peer-to-peer rate per year, in _RAY_ units
- * @param poolRate The pool rate per year, in _RAY_ units
- * @param balanceInP2P The underlying balance matched peer-to-peer
- * @param balanceOnPool The underlying balance on the pool
- */
-export const getWeightedRate = async (
-  p2pRate: BigNumber,
-  poolRate: BigNumber,
-  balanceInP2P: BigNumber,
-  balanceOnPool: BigNumber
-) => {
-  const totalBalance: BigNumber = balanceInP2P.add(balanceOnPool);
-  if (totalBalance.isZero())
-    return {
-      weightedRate: constants.Zero,
-      totalBalance,
-    };
-  return {
-    weightedRate: p2pRate.mul(balanceInP2P).add(poolRate.mul(balanceOnPool)).div(totalBalance),
-    totalBalance,
-  };
-};
-
-/// FUNCTIONS
+import { getContracts, getWeightedAvg, getWeightedRate, zeroFloorSub } from "./utils";
 
 /**
  * This function retrieves the total supply over the Morpho Aave v3
@@ -308,18 +279,7 @@ export const getCurrentCollateralBalanceInOf = async (
   provider: providers.BaseProvider
 ) => {
   const { morphoAaveV3 } = getContracts(provider);
-
-  const [
-    {
-      supply: { poolIndex },
-    },
-    scaledCollateral,
-  ] = await Promise.all([
-    morphoAaveV3.updatedIndexes(underlying),
-    morphoAaveV3.collateralBalance(underlying, user),
-  ]);
-
-  return WadRayMath.rayMul(scaledCollateral, poolIndex);
+return morphoAaveV3.collateralBalance(underlying, user)
 };
 
 /**
