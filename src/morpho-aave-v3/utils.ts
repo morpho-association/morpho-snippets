@@ -8,7 +8,7 @@ import { AavePriceOracle__factory, AaveV3Pool__factory } from "@morpho-labs/morp
 import { MorphoAaveV3__factory } from "../contracts";
 
 export const getContracts = (provider: providers.BaseProvider) => ({
-  morphoAaveV3: MorphoAaveV3__factory.connect("0x123123", provider),
+  morphoAaveV3: MorphoAaveV3__factory.connect("0x123123", provider), // TODO: add Morpho Aave v3 address once deployed
   oracle: AavePriceOracle__factory.connect("0xA50ba011c48153De246E5192C8f9258A2ba79Ca9", provider),
   pool: AaveV3Pool__factory.connect("0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2", provider),
 });
