@@ -5,3 +5,16 @@
 	path = morpho-aave-v3
 	url = https://github.com/morpho-dao/morpho-aave-v3.git
 	branch = dev
+[submodule "openzeppelin-contracts"]
+	path = openzeppelin-contracts
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts
+	branch = v4.8.0
+[submodule "openzeppelin-contracts-upgradeable"]
+	path = openzeppelin-contracts-upgradeable
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable.git
+[submodule "solmate"]
+	path = solmate
+	url = https://github.com/transmissions11/solmate.git
+[submodule "aave-v3-core"]
+	path = aave-v3-core
+	url = https://github.com/aave/aave-v3-core.git
