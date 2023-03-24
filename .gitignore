@@ -1,6 +1,4 @@
 .env
 
-lib
-
 *.log
 node_modules
