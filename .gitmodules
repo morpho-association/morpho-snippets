@@ -1,0 +1,3 @@
+[submodule "lib/morpho-aave-v3"]
+	path = lib/morpho-aave-v3
+	url = https://github.com/morpho-dao/morpho-aave-v3
