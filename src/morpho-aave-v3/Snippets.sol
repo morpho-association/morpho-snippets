@@ -1,27 +1,29 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.17;
 
-import {Math} from "@morpho-utils/math/Math.sol";
-import {WadRayMath} from "@morpho-utils/math/WadRayMath.sol";
-import {PercentageMath} from "@morpho-utils/math/PercentageMath.sol";
-
 import {IPool, IPoolAddressesProvider} from "@aave-v3-core/interfaces/IPool.sol";
 import {IAaveOracle} from "@aave-v3-core/interfaces/IAaveOracle.sol";
 import {IAToken} from "@aave-v3-core/interfaces/IAToken.sol";
 import {IReserveInterestRateStrategy} from "@aave-v3-core/interfaces/IReserveInterestRateStrategy.sol";
 import {IStableDebtToken} from "@aave-v3-core/interfaces/IStableDebtToken.sol";
+import {IMorpho} from "@morpho-aave-v3/interfaces/IMorpho.sol";
+
+import {Math} from "@morpho-utils/math/Math.sol";
+import {WadRayMath} from "@morpho-utils/math/WadRayMath.sol";
+import {PercentageMath} from "@morpho-utils/math/PercentageMath.sol";
+
 import {DataTypes} from "@aave-v3-core/protocol/libraries/types/DataTypes.sol";
 import {ReserveConfiguration} from "@aave-v3-core/protocol/libraries/configuration/ReserveConfiguration.sol";
+
 import {ERC20} from "@solmate/tokens/ERC20.sol";
 
-import {IMorpho} from "@morpho-aave-v3/interfaces/IMorpho.sol";
 import {Types} from "@morpho-aave-v3/libraries/Types.sol";
 
-/// @title Code Snippet Morpho-Aave V3
+/// @title Snippets
 /// @author Morpho Labs
 /// @custom:contact security@morpho.xyz
-/// @notice Contract managing Aave's protocol rewards.
-contract Snippet {
+/// @notice Snippet for Morpho-Aave V3.
+contract Snippets {
     using Math for uint256;
     using WadRayMath for uint256;
     using PercentageMath for uint256;
@@ -53,10 +55,10 @@ contract Snippet {
     }
 
     /// @notice Computes and returns the total distribution of supply through Morpho, using virtually updated indexes.
-    /// @return p2pSupplyAmount The total supplied amount matched peer-to-peer, subtracting the supply delta and the idle supply on Morpho's contract (in USD).
-    /// @return poolSupplyAmount The total supplied amount on the underlying pool, adding the supply delta (in USD).
-    /// @return idleSupplyAmount The total idle supply amount on the Morpho's contract (in USD).
-    /// @return totalSupplyAmount The total amount supplied through Morpho (in USD).
+    /// @return p2pSupplyAmount The total supplied amount matched peer-to-peer, subtracting the supply delta and the idle supply on Morpho's contract (in base currency).
+    /// @return poolSupplyAmount The total supplied amount on the underlying pool, adding the supply delta (in base currency).
+    /// @return idleSupplyAmount The total idle supply amount on the Morpho's contract (in base currency).
+    /// @return totalSupplyAmount The total amount supplied through Morpho (in base currency).
     function totalSupply()
         public
         view
@@ -67,7 +69,7 @@ contract Snippet {
         uint256 underlyingPrice;
         uint256 nbMarkets = marketAddresses.length;
 
-        for (uint256 i; i < nbMarkets;) {
+        for (uint256 i; i < nbMarkets; ++i) {
             address underlying = marketAddresses[i];
 
             DataTypes.ReserveConfigurationMap memory config = pool.getConfiguration(underlying);
@@ -80,18 +82,15 @@ contract Snippet {
             p2pSupplyAmount += (marketP2PSupplyAmount * underlyingPrice) / assetUnit;
             poolSupplyAmount += (marketPoolSupplyAmount * underlyingPrice) / assetUnit;
             idleSupplyAmount += (marketIdleSupplyAmount * underlyingPrice) / assetUnit;
-
-            unchecked {
-                ++i;
-            }
         }
+
         totalSupplyAmount = p2pSupplyAmount + poolSupplyAmount + idleSupplyAmount;
     }
 
     /// @notice Computes and returns the total distribution of borrows through Morpho, using virtually updated indexes.
-    /// @return p2pBorrowAmount The total borrowed amount matched peer-to-peer, subtracting the borrow delta (in USD).
-    /// @return poolBorrowAmount The total borrowed amount on the underlying pool, adding the borrow delta (in USD).
-    /// @return totalBorrowAmount The total amount borrowed through Morpho (in USD).
+    /// @return p2pBorrowAmount The total borrowed amount matched peer-to-peer, subtracting the borrow delta (in base currency).
+    /// @return poolBorrowAmount The total borrowed amount on the underlying pool, adding the borrow delta (in base currency).
+    /// @return totalBorrowAmount The total amount borrowed through Morpho (in base currency).
     function totalBorrow()
         public
         view
@@ -102,7 +101,7 @@ contract Snippet {
         uint256 underlyingPrice;
         uint256 nbMarkets = marketAddresses.length;
 
-        for (uint256 i; i < nbMarkets;) {
+        for (uint256 i; i < nbMarkets; ++i) {
             address underlying = marketAddresses[i];
 
             DataTypes.ReserveConfigurationMap memory config = pool.getConfiguration(underlying);
@@ -113,10 +112,6 @@ contract Snippet {
 
             p2pBorrowAmount += (marketP2PBorrowAmount * underlyingPrice) / assetUnit;
             poolBorrowAmount += (marketPoolBorrowAmount * underlyingPrice) / assetUnit;
-
-            unchecked {
-                ++i;
-            }
         }
 
         totalBorrowAmount = p2pBorrowAmount + poolBorrowAmount;
@@ -260,6 +255,7 @@ contract Snippet {
     }
 
     /// @notice Computes and returns the total distribution of supply for a given market, using virtually updated indexes.
+    /// @notice It takes into account the amount of token deposit in supply and in collateral in Morpho.
     /// @param underlying The address of the underlying asset to check.
     /// @return p2pSupplyAmount The total supplied amount matched peer-to-peer, subtracting the supply delta (in underlying) and the idle supply (in underlying).
     /// @return poolSupplyAmount The total supplied amount on the underlying pool, adding the supply delta (in underlying).
@@ -366,72 +362,72 @@ contract Snippet {
     }
 
     /// @dev Returns the rate experienced based on a given pool & peer-to-peer distribution.
-    /// @param _p2pRate The peer-to-peer rate (in a unit common to `_poolRate` & `weightedRate`).
-    /// @param _poolRate The pool rate (in a unit common to `_p2pRate` & `weightedRate`).
-    /// @param _balanceInP2P The amount of balance matched peer-to-peer (in a unit common to `_balanceOnPool`).
-    /// @param _balanceOnPool The amount of balance supplied on pool (in a unit common to `_balanceInP2P`).
-    /// @return weightedRate The rate experienced by the given distribution (in a unit common to `_p2pRate` & `_poolRate`).
-    function _weightedRate(uint256 _p2pRate, uint256 _poolRate, uint256 _balanceInP2P, uint256 _balanceOnPool)
+    /// @param p2pRate The peer-to-peer rate (in a unit common to `poolRate` & `weightedRate`).
+    /// @param poolRate The pool rate (in a unit common to `p2pRate` & `weightedRate`).
+    /// @param balanceInP2P The amount of balance matched peer-to-peer (in a unit common to `balanceOnPool`).
+    /// @param balanceOnPool The amount of balance supplied on pool (in a unit common to `balanceInP2P`).
+    /// @return weightedRate The rate experienced by the given distribution (in a unit common to `p2pRate` & `poolRate`).
+    function _weightedRate(uint256 p2pRate, uint256 poolRate, uint256 balanceInP2P, uint256 balanceOnPool)
         public
         pure
         returns (uint256 weightedRate)
     {
-        uint256 totalBalance = _balanceInP2P + _balanceOnPool;
+        uint256 totalBalance = balanceInP2P + balanceOnPool;
         if (totalBalance == 0) return (weightedRate);
 
-        if (_balanceInP2P > 0) weightedRate += _p2pRate.rayMul(_balanceInP2P.rayDiv(totalBalance));
-        if (_balanceOnPool > 0) {
-            weightedRate += _poolRate.rayMul(_balanceOnPool.rayDiv(totalBalance));
+        if (balanceInP2P > 0) weightedRate += p2pRate.rayMul(balanceInP2P.rayDiv(totalBalance));
+        if (balanceOnPool > 0) {
+            weightedRate += poolRate.rayMul(balanceOnPool.rayDiv(totalBalance));
         }
     }
 
     /// @notice Computes and returns the peer-to-peer borrow rate per year of a market given its parameters.
-    /// @param _params The computation parameters.
+    /// @param params The computation parameters.
     /// @return p2pBorrowRate The peer-to-peer borrow rate per year (in ray).
-    function p2pBorrowAPR(P2PRateComputeParams memory _params) public pure returns (uint256 p2pBorrowRate) {
-        if (_params.poolSupplyRatePerYear > _params.poolBorrowRatePerYear) {
-            p2pBorrowRate = _params.poolBorrowRatePerYear; // The p2pBorrowRate is set to the poolBorrowRatePerYear because there is no rate spread.
+    function p2pBorrowAPR(P2PRateComputeParams memory params) public pure returns (uint256 p2pBorrowRate) {
+        if (params.poolSupplyRatePerYear > params.poolBorrowRatePerYear) {
+            p2pBorrowRate = params.poolBorrowRatePerYear; // The p2pBorrowRate is set to the poolBorrowRatePerYear because there is no rate spread.
         } else {
             uint256 p2pRate = PercentageMath.weightedAvg(
-                _params.poolSupplyRatePerYear, _params.poolBorrowRatePerYear, _params.p2pIndexCursor
+                params.poolSupplyRatePerYear, params.poolBorrowRatePerYear, params.p2pIndexCursor
             );
 
-            p2pBorrowRate = p2pRate - (_params.poolBorrowRatePerYear - p2pRate).percentMul(_params.reserveFactor);
+            p2pBorrowRate = p2pRate - (params.poolBorrowRatePerYear - p2pRate).percentMul(params.reserveFactor);
         }
 
-        if (_params.p2pDelta > 0 && _params.p2pAmount > 0) {
+        if (params.p2pDelta > 0 && params.p2pAmount > 0) {
             uint256 proportionDelta = Math.min(
-                _params.p2pDelta.rayMul(_params.poolIndex).rayDiv(_params.p2pAmount.rayMul(_params.p2pIndex)), // Using ray division of an amount in underlying decimals by an amount in underlying decimals yields a value in ray.
+                params.p2pDelta.rayMul(params.poolIndex).rayDiv(params.p2pAmount.rayMul(params.p2pIndex)), // Using ray division of an amount in underlying decimals by an amount in underlying decimals yields a value in ray.
                 WadRayMath.RAY // To avoid proportionDelta > 1 with rounding errors.
             ); // In ray.
 
             p2pBorrowRate = p2pBorrowRate.rayMul(WadRayMath.RAY - proportionDelta)
-                + _params.poolBorrowRatePerYear.rayMul(proportionDelta);
+                + params.poolBorrowRatePerYear.rayMul(proportionDelta);
         }
     }
 
     /// @notice Computes and returns the peer-to-peer supply rate per year of a market given its parameters.
-    /// @param _params The computation parameters.
+    /// @param params The computation parameters.
     /// @return p2pSupplyRate The peer-to-peer supply rate per year (in ray).
-    function p2pSupplyAPR(P2PRateComputeParams memory _params) public pure returns (uint256 p2pSupplyRate) {
-        if (_params.poolSupplyRatePerYear > _params.poolBorrowRatePerYear) {
-            p2pSupplyRate = _params.poolBorrowRatePerYear; // The p2pSupplyRate is set to the poolBorrowRatePerYear because there is no rate spread.
+    function p2pSupplyAPR(P2PRateComputeParams memory params) public pure returns (uint256 p2pSupplyRate) {
+        if (params.poolSupplyRatePerYear > params.poolBorrowRatePerYear) {
+            p2pSupplyRate = params.poolBorrowRatePerYear; // The p2pSupplyRate is set to the poolBorrowRatePerYear because there is no rate spread.
         } else {
             uint256 p2pRate = PercentageMath.weightedAvg(
-                _params.poolSupplyRatePerYear, _params.poolBorrowRatePerYear, _params.p2pIndexCursor
+                params.poolSupplyRatePerYear, params.poolBorrowRatePerYear, params.p2pIndexCursor
             );
 
-            p2pSupplyRate = p2pRate - (p2pRate - _params.poolSupplyRatePerYear).percentMul(_params.reserveFactor);
+            p2pSupplyRate = p2pRate - (p2pRate - params.poolSupplyRatePerYear).percentMul(params.reserveFactor);
         }
 
-        if (_params.p2pDelta > 0 && _params.p2pAmount > 0) {
+        if (params.p2pDelta > 0 && params.p2pAmount > 0) {
             uint256 proportionDelta = Math.min(
-                _params.p2pDelta.rayMul(_params.poolIndex).rayDiv(_params.p2pAmount.rayMul(_params.p2pIndex)), // Using ray division of an amount in underlying decimals by an amount in underlying decimals yields a value in ray.
-                WadRayMath.RAY - _params.proportionIdle // To avoid proportionDelta > 1 - proportionIdle with rounding errors.
+                params.p2pDelta.rayMul(params.poolIndex).rayDiv(params.p2pAmount.rayMul(params.p2pIndex)), // Using ray division of an amount in underlying decimals by an amount in underlying decimals yields a value in ray.
+                WadRayMath.RAY - params.proportionIdle // To avoid proportionDelta > 1 - proportionIdle with rounding errors.
             ); // In ray.
 
-            p2pSupplyRate = p2pSupplyRate.rayMul(WadRayMath.RAY - proportionDelta - _params.proportionIdle)
-                + _params.poolSupplyRatePerYear.rayMul(proportionDelta);
+            p2pSupplyRate = p2pSupplyRate.rayMul(WadRayMath.RAY - proportionDelta - params.proportionIdle)
+                + params.poolSupplyRatePerYear.rayMul(proportionDelta);
         }
     }
 
