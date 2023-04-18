@@ -13,6 +13,7 @@ contract TestIntegrationSnippets is IntegrationTest {
 
     using TestMarketLib for TestMarket;
     using ReserveConfiguration for DataTypes.ReserveConfigurationMap;
+    using stdStorage for StdStorage;
 
     Snippets internal snippets;
 
@@ -249,34 +250,9 @@ contract TestIntegrationSnippets is IntegrationTest {
         user.supply(testMarket.underlying, amount);
 
         uint256 supplyRatePerYear = snippets.supplyAPR(testMarket.underlying, address(user));
-        uint256 expectedRate = computeSupplyRate(amount, promoted, testMarket.underlying);
+        uint256 expectedRate = _computeSupplyRate(amount, promoted, testMarket.underlying);
 
         assertApproxEqAbs(supplyRatePerYear, expectedRate, 1e22, "Incorrect supply APR");
-    }
-
-    function computeSupplyRate(uint256 amount, uint256 promoted, address underlying)
-        public
-        view
-        returns (uint256 expectedRate)
-    {
-        (uint256 poolSupplyRate, uint256 poolBorrowRate) = snippets.poolAPR(underlying);
-        Types.Market memory market = morpho.market(underlying);
-
-        uint256 p2pSupplyRate = snippets.p2pSupplyAPR(
-            Snippets.P2PRateComputeParams({
-                poolSupplyRatePerYear: poolSupplyRate,
-                poolBorrowRatePerYear: poolBorrowRate,
-                poolIndex: market.indexes.supply.poolIndex,
-                p2pIndex: market.indexes.supply.p2pIndex,
-                proportionIdle: snippets.proportionIdle(market),
-                p2pDelta: market.deltas.supply.scaledDelta,
-                p2pAmount: market.deltas.supply.scaledP2PTotal,
-                p2pIndexCursor: market.p2pIndexCursor,
-                reserveFactor: market.reserveFactor
-            })
-        );
-        expectedRate = p2pSupplyRate.rayMul(promoted.rayDiv(amount))
-            + poolSupplyRate.rayMul((amount.zeroFloorSub(promoted)).rayDiv(amount));
     }
 
     function testBorrowAPRWhenUserPartiallyMatched(uint256 amount, uint256 seed, uint256 promotionFactor) public {
@@ -291,34 +267,9 @@ contract TestIntegrationSnippets is IntegrationTest {
         );
 
         uint256 borrowRatePerYear = snippets.borrowAPR(testMarket.underlying, address(user));
-        uint256 expectedBorrowRate = computeBorrowRate(amount, promoted, testMarket.underlying);
+        uint256 expectedBorrowRate = _computeBorrowRate(amount, promoted, testMarket.underlying);
 
         assertApproxEqAbs(borrowRatePerYear, expectedBorrowRate, 1e22, "Incorrect supply APR");
-    }
-
-    function computeBorrowRate(uint256 amount, uint256 promoted, address underlying)
-        public
-        view
-        returns (uint256 expectedRate)
-    {
-        (uint256 poolSupplyRate, uint256 poolBorrowRate) = snippets.poolAPR(underlying);
-        Types.Market memory market = morpho.market(underlying);
-
-        uint256 p2pBorrowRate = snippets.p2pBorrowAPR(
-            Snippets.P2PRateComputeParams({
-                poolSupplyRatePerYear: poolSupplyRate,
-                poolBorrowRatePerYear: poolBorrowRate,
-                poolIndex: market.indexes.borrow.poolIndex,
-                p2pIndex: market.indexes.borrow.p2pIndex,
-                proportionIdle: 0,
-                p2pDelta: market.deltas.borrow.scaledDelta,
-                p2pAmount: market.deltas.borrow.scaledP2PTotal,
-                p2pIndexCursor: market.p2pIndexCursor,
-                reserveFactor: market.reserveFactor
-            })
-        );
-        expectedRate = p2pBorrowRate.rayMul(promoted.rayDiv(amount))
-            + poolBorrowRate.rayMul((amount.zeroFloorSub(promoted)).rayDiv(amount));
     }
 
     function testWeightedRateWhenBalanceZero(uint256 p2pRate, uint256 poolRate) public {
@@ -585,20 +536,179 @@ contract TestIntegrationSnippets is IntegrationTest {
                 reserveFactor: reserveFactor
             })
         );
+        uint256 expectedBorrowP2PRate;
+        if (supplyRate > borrowRate) {
+            expectedBorrowP2PRate = borrowRate;
+        } else {
+            uint256 expectedP2PRate = PercentageMath.weightedAvg(supplyRate, borrowRate, p2pIndexCursor);
+            expectedBorrowP2PRate = expectedP2PRate + (borrowRate - expectedP2PRate).percentMul(reserveFactor);
+        }
 
-        uint256 expectedP2PRate = PercentageMath.weightedAvg(supplyRate, borrowRate, p2pIndexCursor);
-        console.log("first");
-
-        uint256 expectedBorrowP2PRate = expectedP2PRate + (borrowRate - expectedP2PRate).percentMul(reserveFactor);
-        console.log("2");
-        console.log(p2pAmount.rayMul(market.indexes.borrow.p2pIndex));
         uint256 proportionDelta = Math.min(
             p2pDelta.rayMul(market.indexes.borrow.poolIndex).rayDivUp(p2pAmount.rayMul(market.indexes.borrow.p2pIndex)),
             WadRayMath.RAY
         );
-        console.log("3");
+
         expectedBorrowP2PRate =
             expectedBorrowP2PRate.rayMul(WadRayMath.RAY - proportionDelta) + borrowRate.rayMul(proportionDelta);
         assertEq(expectedBorrowP2PRate, p2pBorrowRate);
+    }
+
+    function testp2pSupplyAPRWithDeltaAndIdle(
+        uint256 seed,
+        uint256 supplyRate,
+        uint256 borrowRate,
+        uint256 p2pDelta,
+        uint256 p2pAmount,
+        uint256 idleAmount,
+        uint16 reserveFactor,
+        uint16 p2pIndexCursor
+    ) public {
+        supplyRate = bound(supplyRate, 0, type(uint128).max);
+        borrowRate = bound(borrowRate, 0, type(uint128).max);
+        p2pDelta = bound(p2pDelta, 0, type(uint128).max);
+        p2pAmount = bound(p2pAmount, 0, type(uint128).max);
+        idleAmount = bound(idleAmount, 0, type(uint128).max);
+        TestMarket storage testMarket = testMarkets[_randomUnderlying(seed)];
+
+        reserveFactor = uint16(bound(reserveFactor, 0, PercentageMath.PERCENTAGE_FACTOR));
+        p2pIndexCursor = uint16(bound(p2pIndexCursor, 0, PercentageMath.PERCENTAGE_FACTOR));
+
+        Types.Market memory market = morpho.market(testMarket.underlying);
+        vm.assume(
+            p2pDelta.rayMul(market.indexes.supply.poolIndex) + idleAmount
+                < p2pAmount.rayMul(market.indexes.supply.p2pIndex)
+        );
+        market.idleSupply = idleAmount;
+        market.deltas.supply.scaledP2PTotal = p2pAmount;
+        uint256 proportionIdle = snippets.proportionIdle(market);
+
+        uint256 p2pSupplyRate = snippets.p2pSupplyAPR(
+            Snippets.P2PRateComputeParams({
+                poolSupplyRatePerYear: supplyRate,
+                poolBorrowRatePerYear: borrowRate,
+                poolIndex: market.indexes.supply.poolIndex,
+                p2pIndex: market.indexes.supply.p2pIndex,
+                proportionIdle: proportionIdle,
+                p2pDelta: p2pDelta,
+                p2pAmount: p2pAmount,
+                p2pIndexCursor: p2pIndexCursor,
+                reserveFactor: reserveFactor
+            })
+        );
+        uint256 expectedSupplyP2PRate;
+        if (supplyRate > borrowRate) {
+            expectedSupplyP2PRate = borrowRate;
+        } else {
+            uint256 expectedP2PRate = PercentageMath.weightedAvg(supplyRate, borrowRate, p2pIndexCursor);
+            expectedSupplyP2PRate = expectedP2PRate - (expectedP2PRate - supplyRate).percentMul(reserveFactor);
+        }
+
+        uint256 proportionDelta = Math.min(
+            p2pDelta.rayMul(market.indexes.supply.poolIndex).rayDivUp(p2pAmount.rayMul(market.indexes.supply.p2pIndex)),
+            WadRayMath.RAY
+        );
+
+        expectedSupplyP2PRate = expectedSupplyP2PRate.rayMul(WadRayMath.RAY - proportionDelta - proportionIdle)
+            + supplyRate.rayMul(proportionDelta);
+        assertApproxEqAbs(expectedSupplyP2PRate, p2pSupplyRate, 1e9, "Incorrect APR");
+    }
+
+    function testUserHealthFactorShouldReturnMaxIfNoPosition(address user) public {
+        user = _boundAddressNotZero(user);
+        uint256 healthFactor = snippets.userHealthFactor(user);
+        assertEq(type(uint256).max, healthFactor);
+    }
+
+    function testUserHealthFactor(
+        uint256 collateralSeed,
+        uint256 borrowableInEModeSeed,
+        uint256 healthFactor,
+        uint256 amount,
+        address user
+    ) public {
+        user = _boundAddressNotZero(user);
+        TestMarket storage collateralMarket = testMarkets[_randomCollateral(collateralSeed)];
+        TestMarket storage borrowedMarket = testMarkets[_randomBorrowableInEMode(borrowableInEModeSeed)];
+        uint256 borrowed = _boundBorrow(borrowedMarket, amount);
+        _createPosition(borrowedMarket, collateralMarket, user, borrowed, 0, healthFactor);
+        uint256 returnedHealthFactor = snippets.userHealthFactor(user);
+        assertApproxEqAbs(healthFactor, returnedHealthFactor, 3, "Incorrect Health Factor");
+    }
+
+    function _createPosition(
+        TestMarket storage borrowedMarket,
+        TestMarket storage collateralMarket,
+        address borrower,
+        uint256 borrowed,
+        uint256 promotionFactor,
+        uint256 healthFactor
+    ) internal returns (uint256 borrowBalance, uint256 collateralBalance) {
+        borrowed = _boundBorrow(borrowedMarket, borrowed);
+        (, borrowed) = _borrowWithCollateral(
+            borrower, collateralMarket, borrowedMarket, borrowed, borrower, borrower, DEFAULT_MAX_ITERATIONS
+        );
+
+        _promoteBorrow(promoter1, borrowedMarket, borrowed.wadMul(promotionFactor));
+
+        uint256 newScaledCollateralBalance = morpho.scaledCollateralBalance(collateralMarket.underlying, borrower)
+            .rayMul((collateralMarket.ltv - 10).rayDiv(collateralMarket.lt)).wadMul(healthFactor);
+
+        stdstore.target(address(morpho)).sig("scaledCollateralBalance(address,address)").with_key(
+            collateralMarket.underlying
+        ).with_key(borrower).checked_write(newScaledCollateralBalance);
+
+        borrowBalance = morpho.borrowBalance(borrowedMarket.underlying, borrower);
+        collateralBalance = morpho.collateralBalance(collateralMarket.underlying, borrower);
+    }
+
+    function _computeSupplyRate(uint256 amount, uint256 promoted, address underlying)
+        internal
+        view
+        returns (uint256 expectedRate)
+    {
+        (uint256 poolSupplyRate, uint256 poolBorrowRate) = snippets.poolAPR(underlying);
+        Types.Market memory market = morpho.market(underlying);
+
+        uint256 p2pSupplyRate = snippets.p2pSupplyAPR(
+            Snippets.P2PRateComputeParams({
+                poolSupplyRatePerYear: poolSupplyRate,
+                poolBorrowRatePerYear: poolBorrowRate,
+                poolIndex: market.indexes.supply.poolIndex,
+                p2pIndex: market.indexes.supply.p2pIndex,
+                proportionIdle: snippets.proportionIdle(market),
+                p2pDelta: market.deltas.supply.scaledDelta,
+                p2pAmount: market.deltas.supply.scaledP2PTotal,
+                p2pIndexCursor: market.p2pIndexCursor,
+                reserveFactor: market.reserveFactor
+            })
+        );
+        expectedRate = p2pSupplyRate.rayMul(promoted.rayDiv(amount))
+            + poolSupplyRate.rayMul((amount.zeroFloorSub(promoted)).rayDiv(amount));
+    }
+
+    function _computeBorrowRate(uint256 amount, uint256 promoted, address underlying)
+        internal
+        view
+        returns (uint256 expectedRate)
+    {
+        (uint256 poolSupplyRate, uint256 poolBorrowRate) = snippets.poolAPR(underlying);
+        Types.Market memory market = morpho.market(underlying);
+
+        uint256 p2pBorrowRate = snippets.p2pBorrowAPR(
+            Snippets.P2PRateComputeParams({
+                poolSupplyRatePerYear: poolSupplyRate,
+                poolBorrowRatePerYear: poolBorrowRate,
+                poolIndex: market.indexes.borrow.poolIndex,
+                p2pIndex: market.indexes.borrow.p2pIndex,
+                proportionIdle: 0,
+                p2pDelta: market.deltas.borrow.scaledDelta,
+                p2pAmount: market.deltas.borrow.scaledP2PTotal,
+                p2pIndexCursor: market.p2pIndexCursor,
+                reserveFactor: market.reserveFactor
+            })
+        );
+        expectedRate = p2pBorrowRate.rayMul(promoted.rayDiv(amount))
+            + poolBorrowRate.rayMul((amount.zeroFloorSub(promoted)).rayDiv(amount));
     }
 }
