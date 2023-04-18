@@ -361,7 +361,7 @@ contract Snippets {
 
         if (params.p2pDelta > 0 && params.p2pAmount > 0) {
             uint256 proportionDelta = Math.min(
-                params.p2pDelta.rayMul(params.poolIndex).rayDiv(params.p2pAmount.rayMul(params.p2pIndex)), // Using ray division of an amount in underlying decimals by an amount in underlying decimals yields a value in ray.
+                params.p2pDelta.rayMul(params.poolIndex).rayDivUp(params.p2pAmount.rayMul(params.p2pIndex)), // Using ray division of an amount in underlying decimals by an amount in underlying decimals yields a value in ray.
                 WadRayMath.RAY // To avoid proportionDelta > 1 with rounding errors.
             ); // In ray.
 
@@ -386,7 +386,7 @@ contract Snippets {
 
         if ((params.p2pDelta > 0 || params.proportionIdle > 0) && params.p2pAmount > 0) {
             uint256 proportionDelta = Math.min(
-                params.p2pDelta.rayMul(params.poolIndex).rayDiv(params.p2pAmount.rayMul(params.p2pIndex)), // Using ray division of an amount in underlying decimals by an amount in underlying decimals yields a value in ray.
+                params.p2pDelta.rayMul(params.poolIndex).rayDivUp(params.p2pAmount.rayMul(params.p2pIndex)), // Using ray division of an amount in underlying decimals by an amount in underlying decimals yields a value in ray.
                 WadRayMath.RAY - params.proportionIdle // To avoid proportionDelta > 1 - proportionIdle with rounding errors.
             ); // In ray.
 
