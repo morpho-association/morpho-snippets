@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.17;
 
+import {console2} from "@forge-std/console2.sol";
+import {console} from "@forge-std/console.sol";
+
 import {IPool, IPoolAddressesProvider} from "@aave-v3-core/interfaces/IPool.sol";
 import {IAaveOracle} from "@aave-v3-core/interfaces/IAaveOracle.sol";
 import {IAToken} from "@aave-v3-core/interfaces/IAToken.sol";
@@ -381,7 +384,7 @@ contract Snippets {
             p2pSupplyRate = p2pRate - (p2pRate - params.poolSupplyRatePerYear).percentMul(params.reserveFactor);
         }
 
-        if (params.p2pDelta > 0 && params.p2pAmount > 0) {
+        if ((params.p2pDelta > 0 || params.proportionIdle > 0) && params.p2pAmount > 0) {
             uint256 proportionDelta = Math.min(
                 params.p2pDelta.rayMul(params.poolIndex).rayDiv(params.p2pAmount.rayMul(params.p2pIndex)), // Using ray division of an amount in underlying decimals by an amount in underlying decimals yields a value in ray.
                 WadRayMath.RAY - params.proportionIdle // To avoid proportionDelta > 1 - proportionIdle with rounding errors.
