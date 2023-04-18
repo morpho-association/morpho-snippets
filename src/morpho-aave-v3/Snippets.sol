@@ -345,7 +345,7 @@ contract Snippets {
     /// @notice Computes and returns the peer-to-peer borrow rate per year of a market given its parameters.
     /// @param params The computation parameters.
     /// @return p2pBorrowRate The peer-to-peer borrow rate per year (in ray).
-    function p2pBorrowAPR(P2PRateComputeParams memory params) public view returns (uint256 p2pBorrowRate) {
+    function p2pBorrowAPR(P2PRateComputeParams memory params) public pure returns (uint256 p2pBorrowRate) {
         if (params.poolSupplyRatePerYear > params.poolBorrowRatePerYear) {
             p2pBorrowRate = params.poolBorrowRatePerYear; // The p2pBorrowRate is set to the poolBorrowRatePerYear because there is no rate spread.
         } else {
