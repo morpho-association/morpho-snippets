@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.17;
 
+import {console2} from "@forge-std/console2.sol";
+import {console} from "@forge-std/console.sol";
 import {IPool, IPoolAddressesProvider} from "@aave-v3-core/interfaces/IPool.sol";
 import {IAaveOracle} from "@aave-v3-core/interfaces/IAaveOracle.sol";
 import {IAToken} from "@aave-v3-core/interfaces/IAToken.sol";
@@ -345,20 +347,19 @@ contract Snippets {
     /// @notice Computes and returns the peer-to-peer borrow rate per year of a market given its parameters.
     /// @param params The computation parameters.
     /// @return p2pBorrowRate The peer-to-peer borrow rate per year (in ray).
-    function p2pBorrowAPR(P2PRateComputeParams memory params) public pure returns (uint256 p2pBorrowRate) {
+    function p2pBorrowAPR(P2PRateComputeParams memory params) public view returns (uint256 p2pBorrowRate) {
         if (params.poolSupplyRatePerYear > params.poolBorrowRatePerYear) {
             p2pBorrowRate = params.poolBorrowRatePerYear; // The p2pBorrowRate is set to the poolBorrowRatePerYear because there is no rate spread.
         } else {
             uint256 p2pRate = PercentageMath.weightedAvg(
                 params.poolSupplyRatePerYear, params.poolBorrowRatePerYear, params.p2pIndexCursor
             );
-
-            p2pBorrowRate = p2pRate - (params.poolBorrowRatePerYear - p2pRate).percentMul(params.reserveFactor);
+            p2pBorrowRate = p2pRate + (params.poolBorrowRatePerYear - p2pRate).percentMul(params.reserveFactor);
         }
 
         if (params.p2pDelta > 0 && params.p2pAmount > 0) {
             uint256 proportionDelta = Math.min(
-                params.p2pDelta.rayMul(params.poolIndex).rayDiv(params.p2pAmount.rayMul(params.p2pIndex)), // Using ray division of an amount in underlying decimals by an amount in underlying decimals yields a value in ray.
+                params.p2pDelta.rayMul(params.poolIndex).rayDivUp(params.p2pAmount.rayMul(params.p2pIndex)), // Using ray division of an amount in underlying decimals by an amount in underlying decimals yields a value in ray.
                 WadRayMath.RAY // To avoid proportionDelta > 1 with rounding errors.
             ); // In ray.
 
@@ -383,7 +384,7 @@ contract Snippets {
 
         if (params.p2pDelta > 0 && params.p2pAmount > 0) {
             uint256 proportionDelta = Math.min(
-                params.p2pDelta.rayMul(params.poolIndex).rayDiv(params.p2pAmount.rayMul(params.p2pIndex)), // Using ray division of an amount in underlying decimals by an amount in underlying decimals yields a value in ray.
+                params.p2pDelta.rayMul(params.poolIndex).rayDivUp(params.p2pAmount.rayMul(params.p2pIndex)), // Using ray division of an amount in underlying decimals by an amount in underlying decimals yields a value in ray.
                 WadRayMath.RAY - params.proportionIdle // To avoid proportionDelta > 1 - proportionIdle with rounding errors.
             ); // In ray.
 

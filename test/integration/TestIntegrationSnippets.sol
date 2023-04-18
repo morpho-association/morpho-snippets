@@ -434,10 +434,10 @@ contract TestIntegrationSnippets is IntegrationTest {
         uint256 supplyRate,
         uint256 borrowRate
     ) public {
-        borrowRate = bound(borrowRate, 0, type(uint128).max);
         supplyRate = bound(supplyRate, 0, type(uint128).max);
-        TestMarket storage testMarket = testMarkets[_randomBorrowableInEMode(seed)];
         borrowRate = bound(borrowRate, 0, supplyRate);
+        TestMarket storage testMarket = testMarkets[_randomUnderlying(seed)];
+
         Types.Market memory market = morpho.market(testMarket.underlying);
         uint256 p2pBorrowRate = snippets.p2pBorrowAPR(
             Snippets.P2PRateComputeParams({
@@ -460,10 +460,10 @@ contract TestIntegrationSnippets is IntegrationTest {
         uint256 supplyRate,
         uint256 borrowRate
     ) public {
-        borrowRate = bound(borrowRate, 0, type(uint128).max);
         supplyRate = bound(supplyRate, 0, type(uint128).max);
-        TestMarket storage testMarket = testMarkets[_randomBorrowableInEMode(seed)];
         borrowRate = bound(borrowRate, 0, supplyRate);
+        TestMarket storage testMarket = testMarkets[_randomUnderlying(seed)];
+
         Types.Market memory market = morpho.market(testMarket.underlying);
         uint256 p2pSupplyRate = snippets.p2pSupplyAPR(
             Snippets.P2PRateComputeParams({
@@ -488,9 +488,10 @@ contract TestIntegrationSnippets is IntegrationTest {
         uint16 reserveFactor,
         uint16 p2pIndexCursor
     ) public {
+        supplyRate = bound(supplyRate, 0, type(uint128).max - 1);
         borrowRate = bound(borrowRate, supplyRate, type(uint128).max);
-        supplyRate = bound(supplyRate, 0, type(uint128).max);
-        TestMarket storage testMarket = testMarkets[_randomBorrowableInEMode(seed)];
+
+        TestMarket storage testMarket = testMarkets[_randomUnderlying(seed)];
 
         reserveFactor = uint16(bound(reserveFactor, 0, PercentageMath.PERCENTAGE_FACTOR));
         p2pIndexCursor = uint16(bound(p2pIndexCursor, 0, PercentageMath.PERCENTAGE_FACTOR));
@@ -509,6 +510,95 @@ contract TestIntegrationSnippets is IntegrationTest {
                 reserveFactor: reserveFactor
             })
         );
-        uint256 expectedRate = assertEq(expectedRate, p2pSupplyRate);
+
+        uint256 expectedP2PRate = PercentageMath.weightedAvg(supplyRate, borrowRate, p2pIndexCursor);
+        uint256 expectedSupplyP2PRate = expectedP2PRate - (expectedP2PRate - supplyRate).percentMul(reserveFactor);
+        assertEq(expectedSupplyP2PRate, p2pSupplyRate);
+    }
+
+    function testp2pBorrowAPRWithoutP2PAndDelta(
+        uint256 seed,
+        uint256 supplyRate,
+        uint256 borrowRate,
+        uint16 reserveFactor,
+        uint16 p2pIndexCursor
+    ) public {
+        supplyRate = bound(supplyRate, 0, type(uint128).max - 1);
+        borrowRate = bound(borrowRate, supplyRate, type(uint128).max);
+
+        TestMarket storage testMarket = testMarkets[_randomUnderlying(seed)];
+
+        reserveFactor = uint16(bound(reserveFactor, 0, PercentageMath.PERCENTAGE_FACTOR));
+        p2pIndexCursor = uint16(bound(p2pIndexCursor, 0, PercentageMath.PERCENTAGE_FACTOR));
+
+        Types.Market memory market = morpho.market(testMarket.underlying);
+        uint256 p2pBorrowRate = snippets.p2pBorrowAPR(
+            Snippets.P2PRateComputeParams({
+                poolSupplyRatePerYear: supplyRate,
+                poolBorrowRatePerYear: borrowRate,
+                poolIndex: market.indexes.borrow.poolIndex,
+                p2pIndex: market.indexes.borrow.p2pIndex,
+                proportionIdle: 0,
+                p2pDelta: 0,
+                p2pAmount: 0,
+                p2pIndexCursor: p2pIndexCursor,
+                reserveFactor: reserveFactor
+            })
+        );
+
+        uint256 expectedP2PRate = PercentageMath.weightedAvg(supplyRate, borrowRate, p2pIndexCursor);
+        uint256 expectedBorrowP2PRate = expectedP2PRate + (borrowRate - expectedP2PRate).percentMul(reserveFactor);
+        assertEq(expectedBorrowP2PRate, p2pBorrowRate);
+    }
+
+    function testp2pBorrowAPRWithDelta(
+        uint256 seed,
+        uint256 supplyRate,
+        uint256 borrowRate,
+        uint256 p2pDelta,
+        uint256 p2pAmount,
+        uint16 reserveFactor,
+        uint16 p2pIndexCursor
+    ) public {
+        supplyRate = bound(supplyRate, 0, type(uint128).max);
+        borrowRate = bound(borrowRate, 0, type(uint128).max);
+        p2pDelta = bound(p2pDelta, 0, type(uint128).max);
+        p2pAmount = bound(p2pAmount, 0, type(uint128).max);
+        TestMarket storage testMarket = testMarkets[_randomUnderlying(seed)];
+
+        reserveFactor = uint16(bound(reserveFactor, 0, PercentageMath.PERCENTAGE_FACTOR));
+        p2pIndexCursor = uint16(bound(p2pIndexCursor, 0, PercentageMath.PERCENTAGE_FACTOR));
+
+        Types.Market memory market = morpho.market(testMarket.underlying);
+
+        vm.assume(p2pDelta.rayMul(market.indexes.borrow.poolIndex) < p2pAmount.rayMul(market.indexes.borrow.p2pIndex));
+        uint256 p2pBorrowRate = snippets.p2pBorrowAPR(
+            Snippets.P2PRateComputeParams({
+                poolSupplyRatePerYear: supplyRate,
+                poolBorrowRatePerYear: borrowRate,
+                poolIndex: market.indexes.borrow.poolIndex,
+                p2pIndex: market.indexes.borrow.p2pIndex,
+                proportionIdle: 0,
+                p2pDelta: p2pDelta,
+                p2pAmount: p2pAmount,
+                p2pIndexCursor: p2pIndexCursor,
+                reserveFactor: reserveFactor
+            })
+        );
+
+        uint256 expectedP2PRate = PercentageMath.weightedAvg(supplyRate, borrowRate, p2pIndexCursor);
+        console.log("first");
+
+        uint256 expectedBorrowP2PRate = expectedP2PRate + (borrowRate - expectedP2PRate).percentMul(reserveFactor);
+        console.log("2");
+        console.log(p2pAmount.rayMul(market.indexes.borrow.p2pIndex));
+        uint256 proportionDelta = Math.min(
+            p2pDelta.rayMul(market.indexes.borrow.poolIndex).rayDivUp(p2pAmount.rayMul(market.indexes.borrow.p2pIndex)),
+            WadRayMath.RAY
+        );
+        console.log("3");
+        expectedBorrowP2PRate =
+            expectedBorrowP2PRate.rayMul(WadRayMath.RAY - proportionDelta) + borrowRate.rayMul(proportionDelta);
+        assertEq(expectedBorrowP2PRate, p2pBorrowRate);
     }
 }
