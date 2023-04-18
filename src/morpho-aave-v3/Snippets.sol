@@ -356,7 +356,7 @@ contract Snippets {
                 params.poolSupplyRatePerYear, params.poolBorrowRatePerYear, params.p2pIndexCursor
             );
 
-            p2pBorrowRate = p2pRate - (params.poolBorrowRatePerYear - p2pRate).percentMul(params.reserveFactor);
+            p2pBorrowRate = p2pRate + (params.poolBorrowRatePerYear - p2pRate).percentMul(params.reserveFactor);
         }
 
         if (params.p2pDelta > 0 && params.p2pAmount > 0) {
