@@ -607,7 +607,7 @@ contract TestIntegrationSnippets is IntegrationTest {
 
         uint256 proportionDelta = Math.min(
             p2pDelta.rayMul(market.indexes.supply.poolIndex).rayDivUp(p2pAmount.rayMul(market.indexes.supply.p2pIndex)),
-            WadRayMath.RAY
+            WadRayMath.RAY - proportionIdle
         );
 
         expectedSupplyP2PRate = expectedSupplyP2PRate.rayMul(WadRayMath.RAY - proportionDelta - proportionIdle)
@@ -624,7 +624,6 @@ contract TestIntegrationSnippets is IntegrationTest {
     function testUserHealthFactor(
         uint256 collateralSeed,
         uint256 borrowableInEModeSeed,
-        uint256 healthFactor,
         uint256 collateral,
         uint256 borrowed
     ) public {
@@ -660,7 +659,44 @@ contract TestIntegrationSnippets is IntegrationTest {
         }
 
         uint256 returnedHealthFactor = snippets.userHealthFactor(address(user));
-        assertApproxEqAbs(expectedHealthFactor, returnedHealthFactor, 1e6, "Incorrect Health Factor");
+        assertApproxEqAbs(
+            expectedHealthFactor.rayDiv(returnedHealthFactor), WadRayMath.RAY, 1e24, "Incorrect Health Factor"
+        );
+    }
+
+    function testSupplyBalance(uint256 seed, uint256 amount, uint256 promotionFactor) public {
+        TestMarket storage testMarket = testMarkets[_randomUnderlying(seed)];
+        promotionFactor = bound(promotionFactor, 0, WadRayMath.WAD);
+        amount = _boundSupply(testMarket, amount);
+        user.approve(testMarket.underlying, amount);
+        user.supply(testMarket.underlying, amount);
+        uint256 promoted = _promoteSupply(promoter1, testMarket, amount.wadMul(promotionFactor));
+
+        (uint256 balanceInP2P, uint256 balanceOnPool, uint256 totalBalance) =
+            snippets.supplyBalance(testMarket.underlying, address(user));
+
+        assertApproxEqAbs(promoted, balanceInP2P, 2, "Wrong P2P amount");
+        assertApproxEqAbs(amount.zeroFloorSub(promoted), balanceOnPool, 2, "Wrong pool amount");
+        assertApproxEqAbs(amount, totalBalance, 3, "Wrong total amount");
+    }
+
+    function testBorrowBalance(uint256 seed, uint256 amount, uint256 promotionFactor) public {
+        TestMarket storage testMarket = testMarkets[_randomBorrowableInEMode(seed)];
+        promotionFactor = bound(promotionFactor, 0, WadRayMath.WAD);
+        amount = _boundBorrow(testMarket, amount);
+        console.log(promotionFactor);
+        uint256 promoted = _promoteBorrow(promoter1, testMarket, amount.wadMul(promotionFactor));
+        console.log("promoted");
+        amount = _borrowWithoutCollateral(
+            address(user), testMarket, amount, address(user), address(user), DEFAULT_MAX_ITERATIONS
+        );
+
+        (uint256 balanceInP2P, uint256 balanceOnPool, uint256 totalBalance) =
+            snippets.borrowBalance(testMarket.underlying, address(user));
+
+        assertApproxEqAbs(promoted, balanceInP2P, 2, "Wrong P2P amount");
+        assertApproxEqAbs(amount.zeroFloorSub(promoted), balanceOnPool, 2, "Wrong pool amount");
+        assertApproxEqAbs(amount, totalBalance, 3, "Wrong total amount");
     }
 
     function _computeSupplyRate(uint256 amount, uint256 promoted, address underlying)
