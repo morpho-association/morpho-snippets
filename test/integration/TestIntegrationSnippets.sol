@@ -4,8 +4,6 @@ pragma solidity ^0.8.0;
 import "lib/morpho-aave-v3/test/helpers/IntegrationTest.sol";
 import {Constants} from "lib/morpho-aave-v3/src/libraries/Constants.sol";
 import {Snippets} from "@snippets/Snippets.sol";
-import {console2} from "@forge-std/console2.sol";
-import {console} from "@forge-std/console.sol";
 
 contract TestIntegrationSnippets is IntegrationTest {
     using Math for uint256;
@@ -684,9 +682,9 @@ contract TestIntegrationSnippets is IntegrationTest {
         TestMarket storage testMarket = testMarkets[_randomBorrowableInEMode(seed)];
         promotionFactor = bound(promotionFactor, 0, WadRayMath.WAD);
         amount = _boundBorrow(testMarket, amount);
-        console.log(promotionFactor);
+
         uint256 promoted = _promoteBorrow(promoter1, testMarket, amount.wadMul(promotionFactor));
-        console.log("promoted");
+
         amount = _borrowWithoutCollateral(
             address(user), testMarket, amount, address(user), address(user), DEFAULT_MAX_ITERATIONS
         );
