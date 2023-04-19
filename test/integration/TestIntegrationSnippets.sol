@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "lib/morpho-aave-v3/test/helpers/IntegrationTest.sol";
+import {Constants} from "lib/morpho-aave-v3/src/libraries/Constants.sol";
 import {Snippets} from "@snippets/Snippets.sol";
 import {console2} from "@forge-std/console2.sol";
 import {console} from "@forge-std/console.sol";
@@ -624,42 +625,42 @@ contract TestIntegrationSnippets is IntegrationTest {
         uint256 collateralSeed,
         uint256 borrowableInEModeSeed,
         uint256 healthFactor,
-        uint256 amount,
-        address user
+        uint256 collateral,
+        uint256 borrowed
     ) public {
-        user = _boundAddressNotZero(user);
         TestMarket storage collateralMarket = testMarkets[_randomCollateral(collateralSeed)];
         TestMarket storage borrowedMarket = testMarkets[_randomBorrowableInEMode(borrowableInEModeSeed)];
-        uint256 borrowed = _boundBorrow(borrowedMarket, amount);
-        _createPosition(borrowedMarket, collateralMarket, user, borrowed, 0, healthFactor);
-        uint256 returnedHealthFactor = snippets.userHealthFactor(user);
-        assertApproxEqAbs(healthFactor, returnedHealthFactor, 3, "Incorrect Health Factor");
-    }
 
-    function _createPosition(
-        TestMarket storage borrowedMarket,
-        TestMarket storage collateralMarket,
-        address borrower,
-        uint256 borrowed,
-        uint256 promotionFactor,
-        uint256 healthFactor
-    ) internal returns (uint256 borrowBalance, uint256 collateralBalance) {
+        collateral = _boundCollateral(collateralMarket, collateral, borrowedMarket);
+        user.approve(collateralMarket.underlying, collateral);
+        user.supplyCollateral(collateralMarket.underlying, collateral);
+
         borrowed = _boundBorrow(borrowedMarket, borrowed);
-        (, borrowed) = _borrowWithCollateral(
-            borrower, collateralMarket, borrowedMarket, borrowed, borrower, borrower, DEFAULT_MAX_ITERATIONS
+        borrowed = _borrowWithoutCollateral(
+            address(user), borrowedMarket, borrowed, address(user), address(user), DEFAULT_MAX_ITERATIONS
         );
 
-        _promoteBorrow(promoter1, borrowedMarket, borrowed.wadMul(promotionFactor));
+        DataTypes.ReserveConfigurationMap memory collateralConfig = pool.getConfiguration(collateralMarket.underlying);
+        collateral = collateral * (snippets.assetPrice(collateralConfig, collateralMarket.underlying))
+            / 10 ** collateralConfig.getDecimals();
+        collateral = ((Constants.LT_LOWER_BOUND - 1) * collateral) / Constants.LT_LOWER_BOUND;
+        uint256 expectedMaxDebt = collateral.percentMulDown(collateralMarket.lt);
 
-        uint256 newScaledCollateralBalance = morpho.scaledCollateralBalance(collateralMarket.underlying, borrower)
-            .rayMul((collateralMarket.ltv - 10).rayDiv(collateralMarket.lt)).wadMul(healthFactor);
+        DataTypes.ReserveConfigurationMap memory borrowConfig = pool.getConfiguration(borrowedMarket.underlying);
 
-        stdstore.target(address(morpho)).sig("scaledCollateralBalance(address,address)").with_key(
-            collateralMarket.underlying
-        ).with_key(borrower).checked_write(newScaledCollateralBalance);
+        uint256 expectedDebt = (borrowed * (snippets.assetPrice(borrowConfig, borrowedMarket.underlying))).divUp(
+            10 ** borrowConfig.getDecimals()
+        );
+        uint256 expectedHealthFactor;
 
-        borrowBalance = morpho.borrowBalance(borrowedMarket.underlying, borrower);
-        collateralBalance = morpho.collateralBalance(collateralMarket.underlying, borrower);
+        if (expectedDebt > 0) {
+            expectedHealthFactor = expectedMaxDebt.wadDiv(expectedDebt);
+        } else {
+            expectedHealthFactor = type(uint256).max;
+        }
+
+        uint256 returnedHealthFactor = snippets.userHealthFactor(address(user));
+        assertApproxEqAbs(expectedHealthFactor, returnedHealthFactor, 1e6, "Incorrect Health Factor");
     }
 
     function _computeSupplyRate(uint256 amount, uint256 promoted, address underlying)
