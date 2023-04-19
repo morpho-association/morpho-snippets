@@ -654,7 +654,7 @@ contract TestIntegrationSnippets is IntegrationTest {
 
         uint256 returnedHealthFactor = snippets.userHealthFactor(address(user));
         assertApproxEqAbs(
-            expectedHealthFactor.rayDiv(returnedHealthFactor), WadRayMath.RAY, 1e24, "Incorrect Health Factor"
+            expectedHealthFactor.rayDiv(returnedHealthFactor), WadRayMath.RAY, 1, "Incorrect Health Factor"
         );
     }
 
