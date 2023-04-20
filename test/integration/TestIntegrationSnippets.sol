@@ -348,9 +348,12 @@ contract TestIntegrationSnippets is IntegrationTest {
         (uint256 p2pSupplyAmount, uint256 poolSupplyAmount, uint256 idleSupplyAmount) =
             snippets.marketSupply(testMarket.underlying);
 
-        assertApproxEqAbs(poolSupplyAmount, expected.poolSupply, 1e10, "Incorrect pool supply amount");
-        assertApproxEqAbs(p2pSupplyAmount, expected.p2pSupply, 1e9, "Incorrect P2P supply amount");
-        assertApproxEqAbs(idleSupplyAmount, expected.idleSupply, 1e9, "Incorrect Idle supply amount");
+        assertApproxEqAbs(
+            poolSupplyAmount, expected.poolSupply + 10 ** (testMarket.decimals / 2), 20, "Incorrect pool supply amount"
+        );
+        /// add a second member to take into account the initial deposit.
+        assertApproxEqAbs(p2pSupplyAmount, expected.p2pSupply, 2, "Incorrect P2P supply amount");
+        assertApproxEqAbs(idleSupplyAmount, expected.idleSupply, 2, "Incorrect Idle supply amount");
     }
 
     function testMarketBorrow(uint256 seed, uint256 amount, uint256 promotionFactor) public {
@@ -370,8 +373,8 @@ contract TestIntegrationSnippets is IntegrationTest {
 
         (uint256 p2pBorrowAmount, uint256 poolBorrowAmount) = snippets.marketBorrow(testMarket.underlying);
 
-        assertApproxEqAbs(poolBorrowAmount, expectedPoolBorrow, 1e9, "Incorrect Pool borrow amount");
-        assertApproxEqAbs(p2pBorrowAmount, expectedP2PBorrow, 1e9, "Incorrect P2P borrow amount");
+        assertApproxEqAbs(poolBorrowAmount, expectedPoolBorrow, 2, "Incorrect Pool borrow amount");
+        assertApproxEqAbs(p2pBorrowAmount, expectedP2PBorrow, 2, "Incorrect P2P borrow amount");
     }
 
     function testP2PSupplyAPRWhenSupplyRateGreaterThanBorrowRateWithoutP2PAndDeltaAndIdle(
