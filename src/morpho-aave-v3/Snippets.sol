@@ -316,7 +316,7 @@ contract Snippets {
 
         if (isInEMode && categoryEModeData.priceSource != address(0)) {
             price = oracle.getAssetPrice(categoryEModeData.priceSource);
-            if (price == 0) oracle.getAssetPrice(asset);
+            if (price == 0) price = oracle.getAssetPrice(asset);
         } else {
             price = oracle.getAssetPrice(asset);
         }
