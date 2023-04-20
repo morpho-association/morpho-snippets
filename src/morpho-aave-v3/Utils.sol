@@ -107,15 +107,4 @@ library Utils {
         // We take the minimum to handle the case where the proportion is rounded to greater than 1.
         return Math.min(idleSupply.rayDivUp(totalP2PSupplied), WadRayMath.RAY);
     }
-    /// @notice Returns the proportion of idle supply in `market` over the total peer-to-peer amount in supply.
-
-    function getProportionIdle(Types.Market storage market) internal view returns (uint256) {
-        uint256 idleSupply = market.idleSupply;
-        if (idleSupply == 0) return 0;
-
-        uint256 totalP2PSupplied = market.deltas.supply.scaledP2PTotal.rayMul(market.indexes.supply.p2pIndex);
-
-        // We take the minimum to handle the case where the proportion is rounded to greater than 1.
-        return Math.min(idleSupply.rayDivUp(totalP2PSupplied), WadRayMath.RAY);
-    }
 }
