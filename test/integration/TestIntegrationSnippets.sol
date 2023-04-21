@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 import "lib/morpho-aave-v3/test/helpers/IntegrationTest.sol";
 import {Constants} from "lib/morpho-aave-v3/src/libraries/Constants.sol";
+
 import {Snippets} from "@snippets/Snippets.sol";
 import {Utils} from "@snippets/Utils.sol";
 
@@ -13,7 +14,6 @@ contract TestIntegrationSnippets is IntegrationTest {
 
     using TestMarketLib for TestMarket;
     using ReserveConfiguration for DataTypes.ReserveConfigurationMap;
-    using stdStorage for StdStorage;
 
     Snippets internal snippets;
 
@@ -33,7 +33,9 @@ contract TestIntegrationSnippets is IntegrationTest {
         (uint256 p2pSupplyAmount, uint256 poolSupplyAmount, uint256 idleSupplyAmount, uint256 totalSupplyAmount) =
             snippets.totalSupply();
 
-        assertApproxEqAbs(totalSupplyAmount, 0, 1e9, "Incorrect supply amount");
+        assertApproxEqAbs(totalSupplyAmount, 0, 1e9, "Incorrect total supply amount");
+        /// The tolerance is due to the initial deposit made at the creation of the market.
+        assertApproxEqAbs(poolSupplyAmount, 0, 1e9, "Incorrect total borrow amount");
         assertApproxEqAbs(p2pSupplyAmount, 0, 1, "Incorrect P2P supply amount");
         assertApproxEqAbs(idleSupplyAmount, 0, 1, "Incorrect Idle supply amount");
         assertEq(p2pSupplyAmount + poolSupplyAmount + idleSupplyAmount, totalSupplyAmount, "Incorrect values returned");
@@ -42,7 +44,8 @@ contract TestIntegrationSnippets is IntegrationTest {
     function testTotalBorrowShouldBeZeroIfNoAction() public {
         (uint256 p2pBorrowAmount, uint256 poolBorrowAmount, uint256 totalBorrowAmount) = snippets.totalBorrow();
 
-        assertApproxEqAbs(totalBorrowAmount, 0, 1e9, "Incorrect borrow amount");
+        assertApproxEqAbs(totalBorrowAmount, 0, 1, "Incorrect total borrow amount");
+        assertApproxEqAbs(poolBorrowAmount, 0, 1, "Incorrect total borrow amount");
         assertApproxEqAbs(p2pBorrowAmount, 0, 1, "Incorrect P2P borrow amount");
         assertEq(p2pBorrowAmount + poolBorrowAmount, totalBorrowAmount, "Incorrect values returned");
     }
@@ -50,6 +53,7 @@ contract TestIntegrationSnippets is IntegrationTest {
     function testTotalSupply(uint256[] memory amounts, uint256[] memory idleAmounts, uint256 promotionFactor) public {
         ExpectedSupply memory expected;
         promotionFactor = bound(promotionFactor, 0, WadRayMath.WAD);
+
         vm.assume(amounts.length >= allUnderlyings.length);
         vm.assume(idleAmounts.length >= allUnderlyings.length);
 
@@ -58,16 +62,17 @@ contract TestIntegrationSnippets is IntegrationTest {
 
         for (uint256 i; i < borrowableInEModeUnderlyings.length; ++i) {
             address underlying = borrowableInEModeUnderlyings[i];
+
             DataTypes.ReserveConfigurationMap memory config = pool.getConfiguration(underlying);
             uint256 assetUnit = 10 ** config.getDecimals();
-
             uint256 price = snippets.assetPrice(config, underlying);
-            uint256 amount = _boundSupply(testMarkets[underlying], amounts[i]);
 
+            uint256 amount = _boundSupply(testMarkets[underlying], amounts[i]);
             uint256 promoted = _promoteSupply(promoter1, testMarkets[underlying], amount.wadMul(promotionFactor));
 
             user.approve(underlying, amount);
             user.supply(underlying, amount);
+
             idleAmounts[i] = _boundBorrow(testMarkets[underlying], idleAmounts[i]);
             idleAmounts[i] = _increaseIdleSupply(promoter2, testMarkets[underlying], idleAmounts[i]);
 
@@ -87,9 +92,9 @@ contract TestIntegrationSnippets is IntegrationTest {
         (uint256 p2pSupplyAmount, uint256 poolSupplyAmount, uint256 idleSupplyAmount, uint256 totalSupplyAmount) =
             snippets.totalSupply();
 
-        assertApproxEqAbs(totalSupplyAmount, expected.totalSupply, 1e9, "Incorrect supply amount");
+        assertApproxEqAbs(totalSupplyAmount, expected.totalSupply, 1e9, "Incorrect total supply amount");
         assertApproxEqAbs(p2pSupplyAmount, expected.p2pSupply, 1e9, "Incorrect P2P supply amount");
-        assertApproxEqAbs(idleSupplyAmount, expected.idleSupply, 1e9, "Incorrect Idle supply amount");
+        assertApproxEqAbs(idleSupplyAmount, expected.idleSupply, 1e9, "Incorrect idle supply amount");
         assertEq(p2pSupplyAmount + poolSupplyAmount + idleSupplyAmount, totalSupplyAmount, "Incorrect values returned");
     }
 
@@ -99,15 +104,15 @@ contract TestIntegrationSnippets is IntegrationTest {
         uint256 expectedTotalBorrow;
         uint256 expectedP2PBorrow;
         promotionFactor = bound(promotionFactor, 0, WadRayMath.WAD);
+
         vm.assume(amounts.length >= borrowableInEModeUnderlyings.length);
         vm.assume(idleAmounts.length >= borrowableInEModeUnderlyings.length);
 
         for (uint256 i; i < borrowableInEModeUnderlyings.length; ++i) {
             address underlying = borrowableInEModeUnderlyings[i];
+
             DataTypes.ReserveConfigurationMap memory config = pool.getConfiguration(underlying);
-
             uint256 assetUnit = 10 ** config.getDecimals();
-
             uint256 price = snippets.assetPrice(config, underlying);
 
             uint256 borrowed = _boundBorrow(testMarkets[underlying], amounts[i]);
@@ -121,7 +126,6 @@ contract TestIntegrationSnippets is IntegrationTest {
                 address(user),
                 DEFAULT_MAX_ITERATIONS
             );
-
             _promoteBorrow(promoter1, testMarkets[underlying], realborrowed.wadMul(promotionFactor));
 
             expectedP2PBorrow += (realborrowed.wadMul(promotionFactor) * price) / assetUnit;
@@ -130,22 +134,23 @@ contract TestIntegrationSnippets is IntegrationTest {
 
         (uint256 p2pBorrowAmount, uint256 poolBorrowAmount, uint256 totalBorrowAmount) = snippets.totalBorrow();
 
-        assertApproxEqAbs(totalBorrowAmount, expectedTotalBorrow, 1e9, "Incorrect borrow amount");
+        assertApproxEqAbs(totalBorrowAmount, expectedTotalBorrow, 1e9, "Incorrect total borrow amount");
         assertApproxEqAbs(p2pBorrowAmount, expectedP2PBorrow, 1e9, "Incorrect P2P borrow amount");
-
         assertEq(p2pBorrowAmount + poolBorrowAmount, totalBorrowAmount, "Incorrect values returned");
     }
 
     function testSupplyAPRShouldEqual0WhenNoSupply(address user, uint256 seed) public {
         TestMarket storage testMarket = testMarkets[_randomUnderlying(seed)];
         uint256 supplyRatePerYear = snippets.supplyAPR(testMarket.underlying, user);
-        assertEq(supplyRatePerYear, 0);
+
+        assertEq(supplyRatePerYear, 0, "Incorrect supply APR");
     }
 
-    function testBorrowAPRShouldEqual0WhenNoSupply(address user, uint256 seed) public {
+    function testBorrowAPRShouldEqual0WhenNoBorrow(address user, uint256 seed) public {
         TestMarket storage testMarket = testMarkets[_randomUnderlying(seed)];
-        uint256 supplyRatePerYear = snippets.borrowAPR(testMarket.underlying, user);
-        assertEq(supplyRatePerYear, 0);
+        uint256 borrowRatePerYear = snippets.borrowAPR(testMarket.underlying, user);
+
+        assertEq(borrowRatePerYear, 0, "Incorrect borrow APR");
     }
 
     function testSupplyAPRUserRateShouldMatchPoolRateWhenNoMatch(uint256 amount, uint256 seed) public {
@@ -153,10 +158,12 @@ contract TestIntegrationSnippets is IntegrationTest {
         amount = _boundSupply(testMarket, amount);
         user.approve(testMarket.underlying, amount);
         user.supply(testMarket.underlying, amount);
+
         uint256 supplyRatePerYear = snippets.supplyAPR(testMarket.underlying, address(user));
         DataTypes.ReserveData memory reserve = pool.getReserveData(testMarket.underlying);
         uint256 poolSupplyRatePerYear = reserve.currentLiquidityRate;
-        assertEq(supplyRatePerYear, poolSupplyRatePerYear);
+
+        assertEq(supplyRatePerYear, poolSupplyRatePerYear, "Incorrect supply APR");
     }
 
     function testBorrowAPRUserRateShouldMatchPoolRateWhenNoMatch(uint256 amount, uint256 seed) public {
@@ -169,7 +176,7 @@ contract TestIntegrationSnippets is IntegrationTest {
         uint256 borrowRatePerYear = snippets.borrowAPR(testMarket.underlying, onBehalf);
         DataTypes.ReserveData memory reserve = pool.getReserveData(testMarket.underlying);
         uint256 poolBorrowRatePerYear = reserve.currentVariableBorrowRate;
-        assertEq(borrowRatePerYear, poolBorrowRatePerYear);
+        assertEq(borrowRatePerYear, poolBorrowRatePerYear, "Incorrect borrow APR");
     }
 
     function testSupplyAPRUserRateShouldMatchP2PRateWhenFullyMatched(uint256 amount, uint256 supplyCap, uint256 seed)
@@ -203,7 +210,7 @@ contract TestIntegrationSnippets is IntegrationTest {
                 reserveFactor: market.reserveFactor
             })
         );
-        assertEq(supplyRatePerYear, p2pSupplyRate);
+        assertEq(supplyRatePerYear, p2pSupplyRate, "Incorrect supply APR");
     }
 
     function testBorrowAPRUserRateShouldMatchP2PRateWhenFullyMatched(uint256 amount, uint256 seed) public {
@@ -232,7 +239,7 @@ contract TestIntegrationSnippets is IntegrationTest {
                 reserveFactor: market.reserveFactor
             })
         );
-        assertEq(borrowRatePerYear, p2pBorrowRate);
+        assertEq(borrowRatePerYear, p2pBorrowRate, "Incorrect borrow APR");
     }
 
     function testSupplyAPRWhenUserPartiallyMatched(uint256 amount, uint256 seed, uint256 promotionFactor) public {
@@ -240,15 +247,17 @@ contract TestIntegrationSnippets is IntegrationTest {
         TestMarket storage testMarket = testMarkets[_randomBorrowableInEMode(seed)];
         amount = _boundSupply(testMarket, amount);
         vm.assume(amount.wadMul(promotionFactor) != 0);
-        uint256 promoted = _promoteSupply(promoter1, testMarket, amount.wadMul(promotionFactor)) - 1; //  Minus 1 so that the test passes for now.
+        _promoteSupply(promoter1, testMarket, amount.wadMul(promotionFactor));
 
         user.approve(testMarket.underlying, amount);
         user.supply(testMarket.underlying, amount);
 
         uint256 supplyRatePerYear = snippets.supplyAPR(testMarket.underlying, address(user));
-        uint256 expectedRate = _computeSupplyRate(amount, promoted, testMarket.underlying);
 
-        assertApproxEqAbs(supplyRatePerYear, expectedRate, 1e22, "Incorrect supply APR");
+        (uint256 balanceInP2P,, uint256 totalBalance) = snippets.supplyBalance(testMarket.underlying, address(user));
+        uint256 expectedSupplyRate = _computeSupplyRate(totalBalance, balanceInP2P, testMarket.underlying);
+
+        assertEq(supplyRatePerYear, expectedSupplyRate, "Incorrect supply APR");
     }
 
     function testBorrowAPRWhenUserPartiallyMatched(uint256 amount, uint256 seed, uint256 promotionFactor) public {
@@ -256,22 +265,25 @@ contract TestIntegrationSnippets is IntegrationTest {
         TestMarket storage testMarket = testMarkets[_randomBorrowableInEMode(seed)];
         amount = _boundBorrow(testMarket, amount);
 
-        uint256 promoted = _promoteBorrow(promoter1, testMarket, amount.wadMul(promotionFactor)); //  Minus 1 so that the test passes for now.
+        _promoteBorrow(promoter1, testMarket, amount.wadMul(promotionFactor));
 
-        amount = _borrowWithoutCollateral(
+        _borrowWithoutCollateral(
             address(user), testMarket, amount, address(user), address(user), DEFAULT_MAX_ITERATIONS
         );
 
         uint256 borrowRatePerYear = snippets.borrowAPR(testMarket.underlying, address(user));
-        uint256 expectedBorrowRate = _computeBorrowRate(amount, promoted, testMarket.underlying);
 
-        assertApproxEqAbs(borrowRatePerYear, expectedBorrowRate, 1e22, "Incorrect supply APR");
+        (uint256 balanceInP2P,, uint256 totalBalance) = snippets.borrowBalance(testMarket.underlying, address(user));
+        uint256 expectedBorrowRate = _computeBorrowRate(totalBalance, balanceInP2P, testMarket.underlying);
+
+        assertEq(borrowRatePerYear, expectedBorrowRate, "Incorrect borrow APR");
     }
 
     function testMarketSupplyShouldBeAlmostZeroIfNoAction(uint256 seed) public {
         TestMarket storage testMarket = testMarkets[_randomUnderlying(seed)];
         (uint256 p2pSupplyAmount, uint256 poolSupplyAmount, uint256 idleSupplyAmount) =
             snippets.marketSupply(testMarket.underlying);
+
         assertEq(p2pSupplyAmount, 0, "Incorrect p2p amount");
         assertApproxEqAbs(poolSupplyAmount, 10 ** (testMarket.decimals / 2), 20, "Incorrect pool amount");
         assertEq(idleSupplyAmount, 0, "Incorrect idle amount");
@@ -280,6 +292,7 @@ contract TestIntegrationSnippets is IntegrationTest {
     function testMarketBorrowShouldBeAlmostZeroIfNoAction(uint256 seed) public {
         TestMarket storage testMarket = testMarkets[_randomBorrowableInEMode(seed)];
         (uint256 p2pBorrowAmount, uint256 poolBorrowAmount) = snippets.marketBorrow(testMarket.underlying);
+
         assertEq(p2pBorrowAmount, 0, "Incorrect p2p amount");
         assertApproxEqAbs(poolBorrowAmount, 0, 1, "Incorrect pool amount");
     }
@@ -320,7 +333,7 @@ contract TestIntegrationSnippets is IntegrationTest {
         );
         /// add a second member to take into account the initial deposit.
         assertApproxEqAbs(p2pSupplyAmount, expected.p2pSupply, 2, "Incorrect P2P supply amount");
-        assertApproxEqAbs(idleSupplyAmount, expected.idleSupply, 2, "Incorrect Idle supply amount");
+        assertApproxEqAbs(idleSupplyAmount, expected.idleSupply, 2, "Incorrect idle supply amount");
     }
 
     function testMarketBorrow(uint256 seed, uint256 amount, uint256 promotionFactor) public {
@@ -340,7 +353,7 @@ contract TestIntegrationSnippets is IntegrationTest {
 
         (uint256 p2pBorrowAmount, uint256 poolBorrowAmount) = snippets.marketBorrow(testMarket.underlying);
 
-        assertApproxEqAbs(poolBorrowAmount, expectedPoolBorrow, 2, "Incorrect Pool borrow amount");
+        assertApproxEqAbs(poolBorrowAmount, expectedPoolBorrow, 2, "Incorrect pool borrow amount");
         assertApproxEqAbs(p2pBorrowAmount, expectedP2PBorrow, 2, "Incorrect P2P borrow amount");
     }
 
@@ -405,9 +418,9 @@ contract TestIntegrationSnippets is IntegrationTest {
         (uint256 balanceInP2P, uint256 balanceOnPool, uint256 totalBalance) =
             snippets.supplyBalance(testMarket.underlying, address(user));
 
-        assertApproxEqAbs(promoted, balanceInP2P, 2, "Wrong P2P amount");
-        assertApproxEqAbs(amount.zeroFloorSub(promoted), balanceOnPool, 2, "Wrong pool amount");
-        assertApproxEqAbs(amount, totalBalance, 3, "Wrong total amount");
+        assertApproxEqAbs(promoted, balanceInP2P, 2, "Incorrect P2P amount");
+        assertApproxEqAbs(amount.zeroFloorSub(promoted), balanceOnPool, 2, "Incorrect pool amount");
+        assertApproxEqAbs(amount, totalBalance, 3, "Incorrect total amount");
     }
 
     function testBorrowBalance(uint256 seed, uint256 amount, uint256 promotionFactor) public {
@@ -424,9 +437,9 @@ contract TestIntegrationSnippets is IntegrationTest {
         (uint256 balanceInP2P, uint256 balanceOnPool, uint256 totalBalance) =
             snippets.borrowBalance(testMarket.underlying, address(user));
 
-        assertApproxEqAbs(promoted, balanceInP2P, 2, "Wrong P2P amount");
-        assertApproxEqAbs(amount.zeroFloorSub(promoted), balanceOnPool, 2, "Wrong pool amount");
-        assertApproxEqAbs(amount, totalBalance, 3, "Wrong total amount");
+        assertApproxEqAbs(promoted, balanceInP2P, 2, "Incorrect P2P amount");
+        assertApproxEqAbs(amount.zeroFloorSub(promoted), balanceOnPool, 2, "Incorrect pool amount");
+        assertApproxEqAbs(amount, totalBalance, 3, "Incorrect total amount");
     }
 
     function _computeSupplyRate(uint256 amount, uint256 promoted, address underlying)
