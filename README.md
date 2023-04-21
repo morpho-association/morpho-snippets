@@ -61,7 +61,7 @@ The Utils library gathers some pieces of code used in the snippets. You can also
 
 Tests are run against a fork of real networks, which allows us to interact directly with liquidity pools of Aave V3. Note that you need to have an RPC provider that have access to Ethereum.
 
-You can run the test by running the command: forge test
+You can run the test by running the command: `forge test`
 
 
 ## Questions & Feedback
