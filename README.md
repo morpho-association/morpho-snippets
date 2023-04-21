@@ -47,7 +47,7 @@ One can use the following snippets to get relevant data:
 - poolAPR
 - assetPrice
 
-The Utils library gathers some pieces of code used in the snippets. You can also visit the morphoGetters.sol file to have a look at all the data available from the Morpho Contract.
+The Utils library gathers some pieces of code used in the snippets. You can also visit the [MorphoGetters.sol](lib/morpho-aave-v3/src/MorphoGetters.sol) file to have a look at all the data available from the Morpho Contract.
 
 ### Getting Started
 
@@ -59,14 +59,14 @@ The Utils library gathers some pieces of code used in the snippets. You can also
 
 ### Testing with [Foundry](https://github.com/foundry-rs/foundry) 🔨
 
-Tests are run against a fork of real networks, which allows us to interact directly with liquidity pools of AaveV3. Note that you need to have an RPC provider that have access to Ethereum or Avalanche.
+Tests are run against a fork of real networks, which allows us to interact directly with liquidity pools of Aave V3. Note that you need to have an RPC provider that have access to Ethereum.
 
-You can run the test by running the command : forge test 
+You can run the test by running the command: forge test
 
 
 ## Questions & Feedback
 
-For any question or feedback you can send an email to [merlin@morpho.xyz].
+For any question or feedback you can send an email to [merlin@morpho.xyz](mailto:merlin@morpho.xyz).
 
 ---
 
