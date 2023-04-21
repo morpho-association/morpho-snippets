@@ -11,24 +11,28 @@ contract TestUnitSnippets is BaseTest {
 
     function testWeightedRateWhenBalanceZero(uint256 p2pRate, uint256 poolRate) public {
         uint256 weightedRate = Utils.weightedRate(p2pRate, poolRate, 0, 0);
-        assertEq(0, weightedRate);
+
+        assertEq(0, weightedRate, "Incorrect rate");
     }
 
     function testWeightedRateWhenPoolBalanceZero(uint256 p2pRate, uint256 poolRate, uint256 balanceInP2P) public {
         balanceInP2P = _boundAmountNotZero(balanceInP2P);
         poolRate = bound(poolRate, 0, type(uint96).max);
         p2pRate = bound(p2pRate, 0, type(uint96).max);
+
         uint256 weightedRate = Utils.weightedRate(p2pRate, poolRate, balanceInP2P, 0);
-        assertEq(p2pRate, weightedRate);
+
+        assertEq(p2pRate, weightedRate, "Incorrect rate");
     }
 
     function testWeightedRateWhenP2PBalanceZero(uint256 p2pRate, uint256 poolRate, uint256 balanceOnPool) public {
         balanceOnPool = _boundAmountNotZero(balanceOnPool);
         poolRate = bound(poolRate, 0, type(uint96).max);
         p2pRate = bound(p2pRate, 0, type(uint96).max);
+
         uint256 weightedRate = Utils.weightedRate(p2pRate, poolRate, 0, balanceOnPool);
 
-        assertEq(poolRate, weightedRate);
+        assertEq(poolRate, weightedRate, "Incorrect rate");
     }
 
     function testWeightedRate(uint256 p2pRate, uint256 poolRate, uint256 balanceOnPool, uint256 balanceInP2P) public {
@@ -38,10 +42,10 @@ contract TestUnitSnippets is BaseTest {
         balanceInP2P = bound(balanceInP2P, 1, type(uint128).max);
 
         uint256 weightedRate = Utils.weightedRate(p2pRate, poolRate, balanceInP2P, balanceOnPool);
-
         uint256 expectedRate = p2pRate.rayMul(balanceInP2P.rayDiv(balanceInP2P + balanceOnPool))
             + poolRate.rayMul(balanceOnPool.rayDiv(balanceInP2P + balanceOnPool));
-        assertEq(expectedRate, weightedRate);
+
+        assertEq(expectedRate, weightedRate, "Incorrect rate");
     }
 
     function testP2PSupplyAPRWhenSupplyRateGreaterThanBorrowRateWithoutP2PAndDeltaAndIdle(
@@ -70,7 +74,7 @@ contract TestUnitSnippets is BaseTest {
                 reserveFactor: reserveFactor
             })
         );
-        assertEq(borrowPoolRate, p2pSupplyRate);
+        assertEq(borrowPoolRate, p2pSupplyRate, "Incorrect P2P APR");
     }
 
     function testP2PBorrowAPRWhenSupplyRateGreaterThanBorrowRateWithoutP2PAndDelta(
@@ -99,7 +103,7 @@ contract TestUnitSnippets is BaseTest {
                 reserveFactor: reserveFactor
             })
         );
-        assertEq(borrowPoolRate, p2pBorrowRate);
+        assertEq(borrowPoolRate, p2pBorrowRate, "Incorrect P2P APR");
     }
 
     function testP2PSupplyAPRWithoutP2PAndDeltaAndIdle(
@@ -132,7 +136,7 @@ contract TestUnitSnippets is BaseTest {
 
         uint256 expectedP2PRate = PercentageMath.weightedAvg(supplyPoolRate, borrowPoolRate, p2pIndexCursor);
         uint256 expectedSupplyP2PRate = expectedP2PRate - (expectedP2PRate - supplyPoolRate).percentMul(reserveFactor);
-        assertEq(expectedSupplyP2PRate, p2pSupplyRate);
+        assertEq(expectedSupplyP2PRate, p2pSupplyRate, "Incorrect P2P APR");
     }
 
     function testP2PBorrowAPRWithoutP2PAndDelta(
@@ -165,7 +169,8 @@ contract TestUnitSnippets is BaseTest {
 
         uint256 expectedP2PRate = PercentageMath.weightedAvg(supplyPoolRate, borrowPoolRate, p2pIndexCursor);
         uint256 expectedBorrowP2PRate = expectedP2PRate + (borrowPoolRate - expectedP2PRate).percentMul(reserveFactor);
-        assertEq(expectedBorrowP2PRate, p2pBorrowRate);
+
+        assertEq(expectedBorrowP2PRate, p2pBorrowRate, "Incorrect P2P APR");
     }
 
     function testP2PBorrowAPRWithDelta(
@@ -214,10 +219,10 @@ contract TestUnitSnippets is BaseTest {
 
         uint256 proportionDelta =
             Math.min(p2pDelta.rayMul(poolIndex).rayDivUp(p2pAmount.rayMul(p2pIndex)), WadRayMath.RAY);
-
         expectedBorrowP2PRate =
             expectedBorrowP2PRate.rayMul(WadRayMath.RAY - proportionDelta) + borrowPoolRate.rayMul(proportionDelta);
-        assertEq(expectedBorrowP2PRate, p2pBorrowRate);
+
+        assertEq(expectedBorrowP2PRate, p2pBorrowRate, "Incorrect P2P APR");
     }
 
     function testP2PSupplyAPRWithDeltaAndIdle(
@@ -270,9 +275,9 @@ contract TestUnitSnippets is BaseTest {
 
         uint256 proportionDelta =
             Math.min(p2pDelta.rayMul(poolIndex).rayDivUp(p2pAmount.rayMul(p2pIndex)), WadRayMath.RAY - proportionIdle);
-
         expectedSupplyP2PRate = expectedSupplyP2PRate.rayMul(WadRayMath.RAY - proportionDelta - proportionIdle)
             + supplyPoolRate.rayMul(proportionDelta);
-        assertApproxEqAbs(expectedSupplyP2PRate, p2pSupplyRate, 1, "Incorrect APR");
+
+        assertApproxEqAbs(expectedSupplyP2PRate, p2pSupplyRate, 1, "Incorrect P2P APR");
     }
 }
