@@ -34,7 +34,7 @@ contract TestIntegrationSnippets is IntegrationTest {
             snippets.totalSupply();
 
         assertApproxEqAbs(totalSupplyAmount, 0, 1e9, "Incorrect total supply amount");
-        /// The tolerance is due to the initial deposit made at the creation of the market.
+        // The tolerance is due to the initial deposit made at the creation of the market.
         assertApproxEqAbs(poolSupplyAmount, 0, 1e9, "Incorrect total borrow amount");
         assertApproxEqAbs(p2pSupplyAmount, 0, 1, "Incorrect P2P supply amount");
         assertApproxEqAbs(idleSupplyAmount, 0, 1, "Incorrect Idle supply amount");
@@ -331,7 +331,7 @@ contract TestIntegrationSnippets is IntegrationTest {
         assertApproxEqAbs(
             poolSupplyAmount, expected.poolSupply + 10 ** (testMarket.decimals / 2), 20, "Incorrect pool supply amount"
         );
-        /// add a second member to take into account the initial deposit.
+        // add a second member to take into account the initial deposit.
         assertApproxEqAbs(p2pSupplyAmount, expected.p2pSupply, 2, "Incorrect P2P supply amount");
         assertApproxEqAbs(idleSupplyAmount, expected.idleSupply, 2, "Incorrect idle supply amount");
     }
