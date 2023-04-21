@@ -47,7 +47,7 @@ One can use the following snippets to get relevant data:
 - poolAPR
 - assetPrice
 
-The Utils library gathers some pieces of code used in the snippets. You can also visit the [MorphoGetters.sol](lib/morpho-aave-v3/src/MorphoGetters.sol) file to have a look at all the data available from the Morpho Contract.
+The Utils library gathers some pieces of code used in the snippets. You can also visit the [MorphoGetters.sol](https://github.com/morpho-dao/morpho-aave-v3/src/MorphoGetters.sol) file to have a look at all the data available from the Morpho Contract.
 
 ### Getting Started
 
