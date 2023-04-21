@@ -66,7 +66,7 @@ You can run the test by running the command : forge test
 
 ## Questions & Feedback
 
-For any question or feedback you can send an email to [merlin@morpho.xyz](mailto:merlin@morpho.xyz).
+For any question or feedback you can send an email to [merlin@morpho.xyz].
 
 ---
 
