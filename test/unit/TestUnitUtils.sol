@@ -5,7 +5,7 @@ import "lib/morpho-aave-v3/test/helpers/BaseTest.sol";
 import {Utils} from "@snippets/Utils.sol";
 
 /// @notice Didn't test the proportionIdle function as it is the same in Morpho Contract.
-contract TestUnitSnippets is BaseTest {
+contract TestUnitUtils is BaseTest {
     using WadRayMath for uint256;
     using PercentageMath for uint256;
 
