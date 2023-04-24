@@ -35,7 +35,7 @@ library Utils {
     /// @param balanceOnPool The amount of balance supplied on pool (in a unit common to `balanceInP2P`).
     /// @return globalRate The rate experienced by the given distribution (in a unit common to `p2pRate` & `poolRate`).
     function weightedRate(uint256 p2pRate, uint256 poolRate, uint256 balanceInP2P, uint256 balanceOnPool)
-        public
+        internal
         pure
         returns (uint256 globalRate)
     {
@@ -51,7 +51,7 @@ library Utils {
     /// @notice Computes and returns the peer-to-peer borrow rate per year of a market given its parameters.
     /// @param params The computation parameters.
     /// @return p2pBorrowRate The peer-to-peer borrow rate per year (in ray).
-    function p2pBorrowAPR(P2PRateComputeParams memory params) public pure returns (uint256 p2pBorrowRate) {
+    function p2pBorrowAPR(P2PRateComputeParams memory params) internal pure returns (uint256 p2pBorrowRate) {
         if (params.poolSupplyRatePerYear > params.poolBorrowRatePerYear) {
             p2pBorrowRate = params.poolBorrowRatePerYear; // The p2pBorrowRate is set to the poolBorrowRatePerYear because there is no rate spread.
         } else {
@@ -75,7 +75,7 @@ library Utils {
     /// @notice Computes and returns the peer-to-peer supply rate per year of a market given its parameters.
     /// @param params The computation parameters.
     /// @return p2pSupplyRate The peer-to-peer supply rate per year (in ray).
-    function p2pSupplyAPR(P2PRateComputeParams memory params) public pure returns (uint256 p2pSupplyRate) {
+    function p2pSupplyAPR(P2PRateComputeParams memory params) internal pure returns (uint256 p2pSupplyRate) {
         if (params.poolSupplyRatePerYear > params.poolBorrowRatePerYear) {
             p2pSupplyRate = params.poolBorrowRatePerYear; // The p2pSupplyRate is set to the poolBorrowRatePerYear because there is no rate spread.
         } else {
@@ -98,7 +98,7 @@ library Utils {
     }
 
     /// @notice Returns the proportion of idle supply in `market` over the total peer-to-peer amount in supply.
-    function proportionIdle(Types.Market memory market) public pure returns (uint256) {
+    function proportionIdle(Types.Market memory market) internal pure returns (uint256) {
         uint256 idleSupply = market.idleSupply;
         if (idleSupply == 0) return 0;
 
