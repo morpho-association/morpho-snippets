@@ -4,7 +4,8 @@
 
 ### Morpho-Aave-V3 related functions, in Typescript.
 
-One can use one of the following functions to get relevant data: 
+One can use one of the following functions to get relevant data:
+
 - getTotalSupply
 - getTotalBorrow
 
@@ -26,9 +27,10 @@ One can use one of the following functions to get relevant data:
 
 - getUserHealthFactor
 
-### Morpho-Aave-V3 related functions in Solidity. 
+### Morpho-Aave-V3 related functions in Solidity.
 
-One can use the following snippets to get relevant data: 
+One can use the following snippets to get relevant data:
+
 - totalSupply
 - totalBorrow
 
@@ -36,7 +38,7 @@ One can use the following snippets to get relevant data:
 - borrowAPR
 - avgBorrowAPR
 
-- userHealthFactor
+- healthFactor
 
 - marketSupply
 - marketBorrow
@@ -63,6 +65,29 @@ Tests are run against a fork of real networks, which allows us to interact direc
 
 You can run the test by running the command: `forge test`
 
+### VSCode setup
+
+Configure your VSCode to automatically format a file on save, using `forge fmt`:
+
+- Install [emeraldwalk.runonsave](https://marketplace.visualstudio.com/items?itemName=emeraldwalk.RunOnSave)
+- Update your `settings.json`:
+
+```json
+{
+  "[solidity]": {
+    "editor.formatOnSave": false
+  },
+  "emeraldwalk.runonsave": {
+    "commands": [
+      {
+        "match": ".sol",
+        "isAsync": true,
+        "cmd": "forge fmt ${file}"
+      }
+    ]
+  }
+}
+```
 
 ## Questions & Feedback
 

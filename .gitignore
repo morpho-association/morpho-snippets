@@ -4,3 +4,5 @@ lib
 
 *.log
 node_modules
+cache
+.vscode

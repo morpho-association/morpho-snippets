@@ -1,7 +1,7 @@
 [profile.default]
 names = true
 sizes = true
-libs = ["node_modules", "lib"]
+libs = ["lib"]
 fs_permissions = [{ access = "read", path = "./config/"}]
 
 [fuzz]

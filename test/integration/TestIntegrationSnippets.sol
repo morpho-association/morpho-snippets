@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.0;
 
-import "lib/morpho-aave-v3/test/helpers/IntegrationTest.sol";
 import {Constants} from "lib/morpho-aave-v3/src/libraries/Constants.sol";
 
 import {Snippets} from "@snippets/Snippets.sol";
 import {Utils} from "@snippets/Utils.sol";
+
+import "lib/morpho-aave-v3/test/helpers/IntegrationTest.sol";
 
 contract TestIntegrationSnippets is IntegrationTest {
     using Math for uint256;
@@ -63,9 +64,9 @@ contract TestIntegrationSnippets is IntegrationTest {
         for (uint256 i; i < borrowableInEModeUnderlyings.length; ++i) {
             address underlying = borrowableInEModeUnderlyings[i];
 
-            DataTypes.ReserveConfigurationMap memory config = pool.getConfiguration(underlying);
-            uint256 assetUnit = 10 ** config.getDecimals();
-            uint256 price = snippets.assetPrice(config, underlying);
+            DataTypes.ReserveConfigurationMap memory reserve = pool.getConfiguration(underlying);
+            uint256 assetUnit = 10 ** reserve.getDecimals();
+            uint256 price = snippets.assetPrice(reserve, underlying);
 
             uint256 amount = _boundSupply(testMarkets[underlying], amounts[i]);
             uint256 promoted = _promoteSupply(promoter1, testMarkets[underlying], amount.wadMul(promotionFactor));
@@ -111,9 +112,9 @@ contract TestIntegrationSnippets is IntegrationTest {
         for (uint256 i; i < borrowableInEModeUnderlyings.length; ++i) {
             address underlying = borrowableInEModeUnderlyings[i];
 
-            DataTypes.ReserveConfigurationMap memory config = pool.getConfiguration(underlying);
-            uint256 assetUnit = 10 ** config.getDecimals();
-            uint256 price = snippets.assetPrice(config, underlying);
+            DataTypes.ReserveConfigurationMap memory reserve = pool.getConfiguration(underlying);
+            uint256 assetUnit = 10 ** reserve.getDecimals();
+            uint256 price = snippets.assetPrice(reserve, underlying);
 
             uint256 borrowed = _boundBorrow(testMarkets[underlying], amounts[i]);
 
@@ -359,7 +360,7 @@ contract TestIntegrationSnippets is IntegrationTest {
 
     function testUserHealthFactorShouldReturnMaxIfNoPosition(address user) public {
         user = _boundAddressNotZero(user);
-        uint256 healthFactor = snippets.userHealthFactor(user);
+        uint256 healthFactor = snippets.healthFactor(user);
         assertEq(type(uint256).max, healthFactor);
     }
 
@@ -382,8 +383,10 @@ contract TestIntegrationSnippets is IntegrationTest {
         );
 
         DataTypes.ReserveConfigurationMap memory collateralConfig = pool.getConfiguration(collateralMarket.underlying);
-        collateral = (morpho.collateralBalance(collateralMarket.underlying, address(user)))
-            * (snippets.assetPrice(collateralConfig, collateralMarket.underlying)) / 10 ** collateralConfig.getDecimals();
+        collateral = (
+            (morpho.collateralBalance(collateralMarket.underlying, address(user)))
+                * (snippets.assetPrice(collateralConfig, collateralMarket.underlying))
+        ) / 10 ** collateralConfig.getDecimals();
         collateral = ((Constants.LT_LOWER_BOUND - 1) * collateral) / Constants.LT_LOWER_BOUND;
         uint256 expectedMaxDebt = collateral.percentMulDown(collateralMarket.lt);
 
@@ -401,7 +404,7 @@ contract TestIntegrationSnippets is IntegrationTest {
             expectedHealthFactor = type(uint256).max;
         }
 
-        uint256 returnedHealthFactor = snippets.userHealthFactor(address(user));
+        uint256 returnedHealthFactor = snippets.healthFactor(address(user));
         assertApproxEqAbs(
             expectedHealthFactor.rayDiv(returnedHealthFactor), WadRayMath.RAY, 1, "Incorrect Health Factor"
         );
