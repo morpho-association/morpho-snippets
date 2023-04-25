@@ -279,7 +279,7 @@ export const getCurrentCollateralBalanceInOf = async (
   provider: providers.BaseProvider
 ) => {
   const { morphoAaveV3 } = getContracts(provider);
-return morphoAaveV3.collateralBalance(underlying, user)
+  return morphoAaveV3.collateralBalance(underlying, user);
 };
 
 /**

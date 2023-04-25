@@ -15,4 +15,4 @@ solmate/=lib/morpho-aave-v3/lib/permit2/lib/solmate/
 @morpho-aave-v3/=lib/morpho-aave-v3/src/
 @permit2/=lib/morpho-aave-v3/lib/permit2/src/
 
-@snippets/=src/morpho-aave-v3/
+@snippets/=solidity/

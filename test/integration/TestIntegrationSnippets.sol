@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.0;
 
-import {Constants} from "lib/morpho-aave-v3/src/libraries/Constants.sol";
+import {Constants} from "@morpho-aave-v3/libraries/Constants.sol";
 
-import {Snippets} from "@snippets/Snippets.sol";
-import {Utils} from "@snippets/Utils.sol";
+import {Snippets} from "@snippets/morpho-aave-v3/Snippets.sol";
+import {Utils} from "@snippets/morpho-aave-v3/Utils.sol";
 
 import "lib/morpho-aave-v3/test/helpers/IntegrationTest.sol";
 
@@ -196,6 +196,7 @@ contract TestIntegrationSnippets is IntegrationTest {
 
         uint256 supplyRatePerYear = snippets.supplyAPR(testMarket.underlying, onBehalf);
         (uint256 poolSupplyRate, uint256 poolBorrowRate) = snippets.poolAPR(testMarket.underlying);
+
         Types.Market memory market = morpho.market(testMarket.underlying);
 
         uint256 p2pSupplyRate = Utils.p2pSupplyAPR(
@@ -204,13 +205,14 @@ contract TestIntegrationSnippets is IntegrationTest {
                 poolBorrowRatePerYear: poolBorrowRate,
                 poolIndex: market.indexes.supply.poolIndex,
                 p2pIndex: market.indexes.supply.p2pIndex,
-                proportionIdle: Utils.proportionIdle(market),
+                proportionIdle: market.proportionIdle(),
                 p2pDelta: market.deltas.supply.scaledDelta,
                 p2pAmount: market.deltas.supply.scaledP2PTotal,
                 p2pIndexCursor: market.p2pIndexCursor,
                 reserveFactor: market.reserveFactor
             })
         );
+
         assertEq(supplyRatePerYear, p2pSupplyRate, "Incorrect supply APR");
     }
 

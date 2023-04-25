@@ -1,4 +1,5 @@
 [profile.default]
+src = "solidity"
 names = true
 sizes = true
 libs = ["lib"]

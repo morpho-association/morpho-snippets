@@ -5,10 +5,10 @@ import {IPool, IPoolAddressesProvider} from "@aave-v3-core/interfaces/IPool.sol"
 import {IAaveOracle} from "@aave-v3-core/interfaces/IAaveOracle.sol";
 import {IMorpho} from "@morpho-aave-v3/interfaces/IMorpho.sol";
 
-import {Utils} from "@snippets/Utils.sol";
 import {ERC20} from "@solmate/tokens/ERC20.sol";
 import {Types} from "@morpho-aave-v3/libraries/Types.sol";
-import {MarketLib} from "@snippets/libraries/MarketLib.sol";
+import {MarketLib} from "@snippets/morpho-aave-v3/libraries/MarketLib.sol";
+import {Utils} from "@snippets/morpho-aave-v3/Utils.sol";
 import {Math} from "@morpho-utils/math/Math.sol";
 import {WadRayMath} from "@morpho-utils/math/WadRayMath.sol";
 import {DataTypes} from "@aave-v3-core/protocol/libraries/types/DataTypes.sol";
