@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 import {Constants} from "@morpho-aave-v3/libraries/Constants.sol";
 
+import {MarketLib} from "@snippets/morpho-aave-v3/libraries/MarketLib.sol";
 import {Snippets} from "@snippets/morpho-aave-v3/Snippets.sol";
 import {Utils} from "@snippets/morpho-aave-v3/Utils.sol";
 
@@ -13,6 +14,7 @@ contract TestIntegrationSnippets is IntegrationTest {
     using WadRayMath for uint256;
     using PercentageMath for uint256;
 
+    using MarketLib for Types.Market;
     using TestMarketLib for TestMarket;
     using ReserveConfiguration for DataTypes.ReserveConfigurationMap;
 
@@ -58,15 +60,16 @@ contract TestIntegrationSnippets is IntegrationTest {
         vm.assume(amounts.length >= allUnderlyings.length);
         vm.assume(idleAmounts.length >= allUnderlyings.length);
 
-        DataTypes.ReserveConfigurationMap memory daiConfig = pool.getConfiguration(dai);
-        uint256 daiPrice = snippets.assetPrice(daiConfig, dai);
+        DataTypes.ReserveConfigurationMap memory daiReserve = pool.getConfiguration(dai);
+        uint256 daiPrice = snippets.assetPrice(dai, daiReserve.getEModeCategory());
+        uint256 daiUnit = 10 ** daiReserve.getDecimals();
 
         for (uint256 i; i < borrowableInEModeUnderlyings.length; ++i) {
             address underlying = borrowableInEModeUnderlyings[i];
 
             DataTypes.ReserveConfigurationMap memory reserve = pool.getConfiguration(underlying);
             uint256 assetUnit = 10 ** reserve.getDecimals();
-            uint256 price = snippets.assetPrice(reserve, underlying);
+            uint256 price = snippets.assetPrice(underlying, reserve.getEModeCategory());
 
             uint256 amount = _boundSupply(testMarkets[underlying], amounts[i]);
             uint256 promoted = _promoteSupply(promoter1, testMarkets[underlying], amount.wadMul(promotionFactor));
@@ -81,12 +84,12 @@ contract TestIntegrationSnippets is IntegrationTest {
             expected.totalSupply += ((amount + idleAmounts[i]) * price) / assetUnit;
             expected.totalSupply += (
                 testMarkets[dai].minBorrowCollateral(testMarkets[underlying], promoted, eModeCategoryId) * daiPrice
-            ) / 10 ** daiConfig.getDecimals();
+            ) / daiUnit;
 
             expected.totalSupply += (
                 testMarkets[dai].minBorrowCollateral(testMarkets[underlying], idleAmounts[i], eModeCategoryId)
                     * daiPrice
-            ) / 10 ** daiConfig.getDecimals();
+            ) / daiUnit;
             expected.idleSupply += (idleAmounts[i] * price) / assetUnit;
         }
 
@@ -114,7 +117,7 @@ contract TestIntegrationSnippets is IntegrationTest {
 
             DataTypes.ReserveConfigurationMap memory reserve = pool.getConfiguration(underlying);
             uint256 assetUnit = 10 ** reserve.getDecimals();
-            uint256 price = snippets.assetPrice(reserve, underlying);
+            uint256 price = snippets.assetPrice(underlying, reserve.getEModeCategory());
 
             uint256 borrowed = _boundBorrow(testMarkets[underlying], amounts[i]);
 
@@ -207,7 +210,7 @@ contract TestIntegrationSnippets is IntegrationTest {
                 p2pIndex: market.indexes.supply.p2pIndex,
                 proportionIdle: market.proportionIdle(),
                 p2pDelta: market.deltas.supply.scaledDelta,
-                p2pAmount: market.deltas.supply.scaledP2PTotal,
+                p2pTotal: market.deltas.supply.scaledP2PTotal,
                 p2pIndexCursor: market.p2pIndexCursor,
                 reserveFactor: market.reserveFactor
             })
@@ -237,7 +240,7 @@ contract TestIntegrationSnippets is IntegrationTest {
                 p2pIndex: market.indexes.borrow.p2pIndex,
                 proportionIdle: 0,
                 p2pDelta: market.deltas.borrow.scaledDelta,
-                p2pAmount: market.deltas.borrow.scaledP2PTotal,
+                p2pTotal: market.deltas.borrow.scaledP2PTotal,
                 p2pIndexCursor: market.p2pIndexCursor,
                 reserveFactor: market.reserveFactor
             })
@@ -384,20 +387,20 @@ contract TestIntegrationSnippets is IntegrationTest {
             address(user), borrowedMarket, borrowed, address(user), address(user), DEFAULT_MAX_ITERATIONS
         );
 
-        DataTypes.ReserveConfigurationMap memory collateralConfig = pool.getConfiguration(collateralMarket.underlying);
+        DataTypes.ReserveConfigurationMap memory collateralReserve = pool.getConfiguration(collateralMarket.underlying);
         collateral = (
             (morpho.collateralBalance(collateralMarket.underlying, address(user)))
-                * (snippets.assetPrice(collateralConfig, collateralMarket.underlying))
-        ) / 10 ** collateralConfig.getDecimals();
+                * (snippets.assetPrice(collateralMarket.underlying, collateralReserve.getEModeCategory()))
+        ) / 10 ** collateralReserve.getDecimals();
         collateral = ((Constants.LT_LOWER_BOUND - 1) * collateral) / Constants.LT_LOWER_BOUND;
         uint256 expectedMaxDebt = collateral.percentMulDown(collateralMarket.lt);
 
-        DataTypes.ReserveConfigurationMap memory borrowConfig = pool.getConfiguration(borrowedMarket.underlying);
+        DataTypes.ReserveConfigurationMap memory borrowedReserve = pool.getConfiguration(borrowedMarket.underlying);
 
         uint256 expectedDebt = (
             (morpho.borrowBalance(borrowedMarket.underlying, address(user)))
-                * (snippets.assetPrice(borrowConfig, borrowedMarket.underlying))
-        ).divUp(10 ** borrowConfig.getDecimals());
+                * (snippets.assetPrice(borrowedMarket.underlying, borrowedReserve.getEModeCategory()))
+        ).divUp(10 ** borrowedReserve.getDecimals());
         uint256 expectedHealthFactor;
 
         if (expectedDebt > 0) {
@@ -461,9 +464,9 @@ contract TestIntegrationSnippets is IntegrationTest {
                 poolBorrowRatePerYear: poolBorrowRate,
                 poolIndex: market.indexes.supply.poolIndex,
                 p2pIndex: market.indexes.supply.p2pIndex,
-                proportionIdle: Utils.proportionIdle(market),
+                proportionIdle: market.proportionIdle(),
                 p2pDelta: market.deltas.supply.scaledDelta,
-                p2pAmount: market.deltas.supply.scaledP2PTotal,
+                p2pTotal: market.deltas.supply.scaledP2PTotal,
                 p2pIndexCursor: market.p2pIndexCursor,
                 reserveFactor: market.reserveFactor
             })
@@ -488,7 +491,7 @@ contract TestIntegrationSnippets is IntegrationTest {
                 p2pIndex: market.indexes.borrow.p2pIndex,
                 proportionIdle: 0,
                 p2pDelta: market.deltas.borrow.scaledDelta,
-                p2pAmount: market.deltas.borrow.scaledP2PTotal,
+                p2pTotal: market.deltas.borrow.scaledP2PTotal,
                 p2pIndexCursor: market.p2pIndexCursor,
                 reserveFactor: market.reserveFactor
             })

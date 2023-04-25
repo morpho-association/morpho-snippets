@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.0;
 
+import {Utils} from "@snippets/morpho-aave-v3/Utils.sol";
+
 import "lib/morpho-aave-v3/test/helpers/BaseTest.sol";
-import {Utils} from "@snippets/Utils.sol";
 
 /// @notice Didn't test the proportionIdle function as it is the same in Morpho Contract.
 contract TestUnitUtils is BaseTest {
@@ -69,7 +70,7 @@ contract TestUnitUtils is BaseTest {
                 p2pIndex: p2pIndex,
                 proportionIdle: 0,
                 p2pDelta: 0,
-                p2pAmount: 0,
+                p2pTotal: 0,
                 p2pIndexCursor: p2pIndexCursor,
                 reserveFactor: reserveFactor
             })
@@ -98,7 +99,7 @@ contract TestUnitUtils is BaseTest {
                 p2pIndex: p2pIndex,
                 proportionIdle: 0,
                 p2pDelta: 0,
-                p2pAmount: 0,
+                p2pTotal: 0,
                 p2pIndexCursor: p2pIndexCursor,
                 reserveFactor: reserveFactor
             })
@@ -128,7 +129,7 @@ contract TestUnitUtils is BaseTest {
                 p2pIndex: p2pIndex,
                 proportionIdle: 0,
                 p2pDelta: 0,
-                p2pAmount: 0,
+                p2pTotal: 0,
                 p2pIndexCursor: p2pIndexCursor,
                 reserveFactor: reserveFactor
             })
@@ -161,7 +162,7 @@ contract TestUnitUtils is BaseTest {
                 p2pIndex: p2pIndex,
                 proportionIdle: 0,
                 p2pDelta: 0,
-                p2pAmount: 0,
+                p2pTotal: 0,
                 p2pIndexCursor: p2pIndexCursor,
                 reserveFactor: reserveFactor
             })
@@ -177,7 +178,7 @@ contract TestUnitUtils is BaseTest {
         uint256 supplyPoolRate,
         uint256 borrowPoolRate,
         uint256 p2pDelta,
-        uint256 p2pAmount,
+        uint256 p2pTotal,
         uint16 reserveFactor,
         uint16 p2pIndexCursor,
         uint256 poolIndex,
@@ -188,12 +189,12 @@ contract TestUnitUtils is BaseTest {
         poolIndex = bound(poolIndex, 0, type(uint96).max);
         p2pIndex = bound(p2pIndex, 0, type(uint96).max);
         p2pDelta = bound(p2pDelta, 0, type(uint128).max);
-        p2pAmount = bound(p2pAmount, 0, type(uint128).max);
+        p2pTotal = bound(p2pTotal, 0, type(uint128).max);
 
         reserveFactor = uint16(bound(reserveFactor, 0, PercentageMath.PERCENTAGE_FACTOR));
         p2pIndexCursor = uint16(bound(p2pIndexCursor, 0, PercentageMath.PERCENTAGE_FACTOR));
 
-        vm.assume(p2pDelta.rayMul(poolIndex) < p2pAmount.rayMul(p2pIndex));
+        vm.assume(p2pDelta.rayMul(poolIndex) < p2pTotal.rayMul(p2pIndex));
 
         uint256 p2pBorrowRate = Utils.p2pBorrowAPR(
             Utils.P2PRateComputeParams({
@@ -203,7 +204,7 @@ contract TestUnitUtils is BaseTest {
                 p2pIndex: p2pIndex,
                 proportionIdle: 0,
                 p2pDelta: p2pDelta,
-                p2pAmount: p2pAmount,
+                p2pTotal: p2pTotal,
                 p2pIndexCursor: p2pIndexCursor,
                 reserveFactor: reserveFactor
             })
@@ -218,7 +219,7 @@ contract TestUnitUtils is BaseTest {
         }
 
         uint256 proportionDelta =
-            Math.min(p2pDelta.rayMul(poolIndex).rayDivUp(p2pAmount.rayMul(p2pIndex)), WadRayMath.RAY);
+            Math.min(p2pDelta.rayMul(poolIndex).rayDivUp(p2pTotal.rayMul(p2pIndex)), WadRayMath.RAY);
         expectedBorrowP2PRate =
             expectedBorrowP2PRate.rayMul(WadRayMath.RAY - proportionDelta) + borrowPoolRate.rayMul(proportionDelta);
 
@@ -229,7 +230,7 @@ contract TestUnitUtils is BaseTest {
         uint256 supplyPoolRate,
         uint256 borrowPoolRate,
         uint256 p2pDelta,
-        uint256 p2pAmount,
+        uint256 p2pTotal,
         uint256 idleAmount,
         uint16 reserveFactor,
         uint16 p2pIndexCursor,
@@ -241,15 +242,15 @@ contract TestUnitUtils is BaseTest {
         poolIndex = bound(poolIndex, 0, type(uint96).max);
         p2pIndex = bound(p2pIndex, 0, type(uint96).max);
         p2pDelta = bound(p2pDelta, 0, type(uint128).max);
-        p2pAmount = bound(p2pAmount, 0, type(uint128).max);
+        p2pTotal = bound(p2pTotal, 0, type(uint128).max);
         idleAmount = bound(idleAmount, 0, type(uint128).max);
 
         reserveFactor = uint16(bound(reserveFactor, 0, PercentageMath.PERCENTAGE_FACTOR));
         p2pIndexCursor = uint16(bound(p2pIndexCursor, 0, PercentageMath.PERCENTAGE_FACTOR));
 
-        vm.assume(p2pDelta.rayMul(poolIndex) + idleAmount < p2pAmount.rayMul(p2pIndex));
+        vm.assume(p2pDelta.rayMul(poolIndex) + idleAmount < p2pTotal.rayMul(p2pIndex));
 
-        uint256 proportionIdle = Math.min(idleAmount.rayDivUp(p2pAmount.rayMul(p2pIndex)), WadRayMath.RAY);
+        uint256 proportionIdle = Math.min(idleAmount.rayDivUp(p2pTotal.rayMul(p2pIndex)), WadRayMath.RAY);
 
         uint256 p2pSupplyRate = Utils.p2pSupplyAPR(
             Utils.P2PRateComputeParams({
@@ -259,7 +260,7 @@ contract TestUnitUtils is BaseTest {
                 p2pIndex: p2pIndex,
                 proportionIdle: proportionIdle,
                 p2pDelta: p2pDelta,
-                p2pAmount: p2pAmount,
+                p2pTotal: p2pTotal,
                 p2pIndexCursor: p2pIndexCursor,
                 reserveFactor: reserveFactor
             })
@@ -274,7 +275,7 @@ contract TestUnitUtils is BaseTest {
         }
 
         uint256 proportionDelta =
-            Math.min(p2pDelta.rayMul(poolIndex).rayDivUp(p2pAmount.rayMul(p2pIndex)), WadRayMath.RAY - proportionIdle);
+            Math.min(p2pDelta.rayMul(poolIndex).rayDivUp(p2pTotal.rayMul(p2pIndex)), WadRayMath.RAY - proportionIdle);
         expectedSupplyP2PRate = expectedSupplyP2PRate.rayMul(WadRayMath.RAY - proportionDelta - proportionIdle)
             + supplyPoolRate.rayMul(proportionDelta);
 
