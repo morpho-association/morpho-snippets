@@ -62,7 +62,6 @@ contract TestIntegrationSnippets is IntegrationTest {
 
         DataTypes.ReserveConfigurationMap memory daiReserve = pool.getConfiguration(dai);
         uint256 daiPrice = snippets.assetPrice(dai, daiReserve.getEModeCategory());
-        uint256 daiUnit = 10 ** daiReserve.getDecimals();
 
         for (uint256 i; i < borrowableInEModeUnderlyings.length; ++i) {
             address underlying = borrowableInEModeUnderlyings[i];
@@ -84,12 +83,12 @@ contract TestIntegrationSnippets is IntegrationTest {
             expected.totalSupply += ((amount + idleAmounts[i]) * price) / assetUnit;
             expected.totalSupply += (
                 testMarkets[dai].minBorrowCollateral(testMarkets[underlying], promoted, eModeCategoryId) * daiPrice
-            ) / daiUnit;
+            ) / (10 ** daiReserve.getDecimals());
 
             expected.totalSupply += (
                 testMarkets[dai].minBorrowCollateral(testMarkets[underlying], idleAmounts[i], eModeCategoryId)
                     * daiPrice
-            ) / daiUnit;
+            ) / (10 ** daiReserve.getDecimals());
             expected.idleSupply += (idleAmounts[i] * price) / assetUnit;
         }
 
