@@ -1,6 +1,16 @@
 # Morpho-snippets
 
-## Typescript based snippets related to Morpho Protocols.
+## Typescript & Solidity based snippets related to Morpho Protocols.
+
+## IMPORTANT
+
+This repository contains smart contracts that have been developed for educational, experimental, or demonstration purposes only. By using or interacting with these smart contracts, you acknowledge and accept the following:
+
+- The smart contracts in this repository have not been audited and are provided "as is" with no guarantees, warranties, or assurances of any kind. The authors and maintainers of this repository are not responsible for any damages, losses, or liabilities that may arise from the use or deployment of these smart contracts.
+
+- The smart contracts in this repository are not intended for use in production environments or for the management of real-world assets, funds, or resources. Any use or deployment of these smart contracts for such purposes is done entirely at your own risk.
+
+- The smart contracts are provided for reference and learning purposes, and you are solely responsible for understanding, modifying, and deploying them as needed.
 
 ### Morpho-Aave-V3 related functions, in Typescript.
 
