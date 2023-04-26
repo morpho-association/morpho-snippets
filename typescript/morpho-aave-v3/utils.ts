@@ -3,9 +3,11 @@ import { constants } from "ethers/lib/index";
 
 import { PercentMath } from "@morpho-labs/ethers-utils/lib/maths";
 import { maxBN } from "@morpho-labs/ethers-utils/lib/utils";
-import { AavePriceOracle__factory, AaveV3Pool__factory } from "@morpho-labs/morpho-ethers-contract";
-
-import { MorphoAaveV3__factory } from "../contracts";
+import {
+  AavePriceOracle__factory,
+  AaveV3Pool__factory,
+  MorphoAaveV3__factory,
+} from "@morpho-labs/morpho-ethers-contract";
 
 export const getContracts = (provider: providers.BaseProvider) => ({
   morphoAaveV3: MorphoAaveV3__factory.connect("0x123123", provider), // TODO: add Morpho Aave v3 address once deployed
