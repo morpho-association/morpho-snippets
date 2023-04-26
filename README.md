@@ -10,7 +10,7 @@ This repository contains smart contracts that have been developed for educationa
 
 - The smart contracts in this repository are not intended for use in production environments or for the management of real-world assets, funds, or resources. Any use or deployment of these smart contracts for such purposes is done entirely at your own risk.
 
-- The authors and maintainers of this repository do not provide any support, maintenance, or updates for these smart contracts. The smart contracts are provided for reference and learning purposes, and you are solely responsible for understanding, modifying, and deploying them as needed.
+- The smart contracts are provided for reference and learning purposes, and you are solely responsible for understanding, modifying, and deploying them as needed.
 
 ### Morpho-Aave-V3 related functions, in Typescript.
 
