@@ -1,6 +1,10 @@
 .env
 out
 lib
+dist
 
 *.log
 node_modules
+cache
+.vscode
+*.tsbuildinfo

@@ -42,7 +42,6 @@ export const getWeightedAvg = (x: BigNumber, y: BigNumber, percentage: BigNumber
   return z;
 };
 
-
 /**
  * This function is computing an average rate
  * and returns the weighted rate and the total balance.
@@ -69,7 +68,6 @@ export const getWeightedRate = async (
     totalBalance,
   };
 };
-
 
 /**
  * TODO: move it to ethers-utils

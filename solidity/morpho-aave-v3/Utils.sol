@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.0;
 
 import {Math} from "@morpho-utils/math/Math.sol";
 import {WadRayMath} from "@morpho-utils/math/WadRayMath.sol";
 import {PercentageMath} from "@morpho-utils/math/PercentageMath.sol";
-
-import {Types} from "@morpho-aave-v3/libraries/Types.sol";
 
 /// @title Utils
 /// @author Morpho Labs
@@ -23,7 +21,7 @@ library Utils {
         uint256 p2pIndex;
         uint256 proportionIdle;
         uint256 p2pDelta;
-        uint256 p2pAmount;
+        uint256 p2pTotal;
         uint256 p2pIndexCursor;
         uint256 reserveFactor;
     }
@@ -61,9 +59,9 @@ library Utils {
             p2pBorrowRate = p2pRate + (params.poolBorrowRatePerYear - p2pRate).percentMul(params.reserveFactor);
         }
 
-        if (params.p2pDelta > 0 && params.p2pAmount > 0) {
+        if (params.p2pDelta > 0 && params.p2pTotal > 0) {
             uint256 proportionDelta = Math.min(
-                params.p2pDelta.rayMul(params.poolIndex).rayDivUp(params.p2pAmount.rayMul(params.p2pIndex)), // Using ray division of an amount in underlying decimals by an amount in underlying decimals yields a value in ray.
+                params.p2pDelta.rayMul(params.poolIndex).rayDivUp(params.p2pTotal.rayMul(params.p2pIndex)), // Using ray division of an amount in underlying decimals by an amount in underlying decimals yields a value in ray.
                 WadRayMath.RAY // To avoid proportionDelta > 1 with rounding errors.
             ); // In ray.
 
@@ -86,25 +84,14 @@ library Utils {
             p2pSupplyRate = p2pRate - (p2pRate - params.poolSupplyRatePerYear).percentMul(params.reserveFactor);
         }
 
-        if ((params.p2pDelta > 0 || params.proportionIdle > 0) && params.p2pAmount > 0) {
+        if ((params.p2pDelta > 0 || params.proportionIdle > 0) && params.p2pTotal > 0) {
             uint256 proportionDelta = Math.min(
-                params.p2pDelta.rayMul(params.poolIndex).rayDivUp(params.p2pAmount.rayMul(params.p2pIndex)), // Using ray division of an amount in underlying decimals by an amount in underlying decimals yields a value in ray.
+                params.p2pDelta.rayMul(params.poolIndex).rayDivUp(params.p2pTotal.rayMul(params.p2pIndex)), // Using ray division of an amount in underlying decimals by an amount in underlying decimals yields a value in ray.
                 WadRayMath.RAY - params.proportionIdle // To avoid proportionDelta > 1 - proportionIdle with rounding errors.
             ); // In ray.
 
             p2pSupplyRate = p2pSupplyRate.rayMul(WadRayMath.RAY - proportionDelta - params.proportionIdle)
                 + params.poolSupplyRatePerYear.rayMul(proportionDelta);
         }
-    }
-
-    /// @notice Returns the proportion of idle supply in `market` over the total peer-to-peer amount in supply.
-    function proportionIdle(Types.Market memory market) internal pure returns (uint256) {
-        uint256 idleSupply = market.idleSupply;
-        if (idleSupply == 0) return 0;
-
-        uint256 totalP2PSupplied = market.deltas.supply.scaledP2PTotal.rayMul(market.indexes.supply.p2pIndex);
-
-        // We take the minimum to handle the case where the proportion is rounded to greater than 1.
-        return Math.min(idleSupply.rayDivUp(totalP2PSupplied), WadRayMath.RAY);
     }
 }
